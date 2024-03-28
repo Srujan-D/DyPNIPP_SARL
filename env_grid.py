@@ -37,11 +37,13 @@ class Env():
         self.budget_range = budget_range
         self.budget = np.random.uniform(*self.budget_range)
         if start is None:
-            self.start = np.random.rand(1, 2)
+            # self.start = np.random.rand(1, 2)
+            self.start = np.random.randint(1, env_size-1, size=(1, 2))
         else:
             self.start = np.array([start])
         if destination is None:
-            self.destination = np.random.rand(1, 2)
+            # self.destination = np.random.rand(1, 2)
+            self.destination = np.random.randint(1, env_size-1, size=(1, 2))
         else:
             self.destination = np.array([destination])
         self.obstacle = obstacle
@@ -56,8 +58,8 @@ class Env():
         # self.destination = np.random.rand(1, 2)
         # self.grid = PRMController(sample_size=self.sample_size, allObs=self.obstacle, start=self.start, destination=self.destination, budget_range=self.budget_range, k_size=self.k_size)
 
-        self.start = self.start = np.random.randint(0, env_size, size=(1, 2))
-        self.destination = np.random.randint(0, env_size, size=(1, 2))
+        self.start = self.start = np.random.randint(1, env_size-1, size=(1, 2))
+        self.destination = np.random.randint(1, env_size-1, size=(1, 2))
         self.grid = Grid(grid_rows=self.env_size, grid_cols=self.env_size, start=self.start, destination=self.destination, allObs=self.obstacle)
         self.prm = self.grid
         self.budget = np.random.uniform(*self.budget_range)

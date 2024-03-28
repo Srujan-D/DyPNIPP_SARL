@@ -18,22 +18,23 @@ from pygame.locals import *
 import numpy as np
 import random
 import matplotlib.pyplot as plt
-from WildFire_Model import WildFire
-from FireCommander_Cmplx2_Utilities import EnvUtilities
+from fire_commander.WildFire_Model import WildFire
+from fire_commander.FireCommander_Cmplx2_Utilities import EnvUtilities
+from scipy.interpolate import griddata
 
 Agent_Util = EnvUtilities()
 
 
 # Full FireCommander Environment with Battery and Tanker Capacity Limitations
 class FireCommanderExtreme(object):
-    def __init__(self, world_size=None, duration=None, fireAreas_Num=None, P_agent_num=None, A_agent_num=None, online_vis=False):
+    def __init__(self, world_size=None, duration=None, fireAreas_Num=None, P_agent_num=None, A_agent_num=None, online_vis=False, start=None):
 
         # pars parameters
         self.world_size = 100 if world_size is None else world_size            # world size
         self.duration = 200 if duration is None else duration                  # numbr of steps per game
         self.fireAreas_Num = 2 if fireAreas_Num is None else fireAreas_Num     # number of fire areas
-        self.perception_agent_num = 2 if P_agent_num is None else P_agent_num  # number of perception agents
-        self.action_agent_num = 2 if A_agent_num is None else A_agent_num      # number of action agents
+        self.perception_agent_num = 1 if P_agent_num is None else P_agent_num  # number of perception agents
+        self.action_agent_num = 0 if A_agent_num is None else A_agent_num      # number of action agents
 
         # fire model parameters
         areas_x = np.random.randint(20, self.world_size - 20, self.fireAreas_Num)
@@ -44,6 +45,10 @@ class FireCommanderExtreme(object):
         area_wind_directions = []
         area_centers = []
         num_firespots = []
+
+        # agent starting position
+        print(start)
+        self.start = [int((start[0]+1)*self.world_size/2), int((start[1]+1)*self.world_size/2)]
 
         for i in range(self.fireAreas_Num):
             area_centers.append([areas_x[i], areas_y[i]])
@@ -72,6 +77,9 @@ class FireCommanderExtreme(object):
             # Create a screen (Width * Height) = (1024 * 1024)
             self.screen = pygame.display.set_mode((self.world_size, self.world_size), 0, 32)
 
+    def convert2world(self, pose):
+        return [int((pose[0]+1)*self.world_size/2), int((pose[1]+1)*self.world_size/2)]
+    
     # initialize the environment
     def env_init(self, comm_range=30, init_alt=10):
         # state matrix: 0 -> not_on_fire, 1 -> sensed_on_fire, 2 -> pruned, 3 -> P_agent_loc, 4 -> P_agent_scope, 5 -> A_agent_loc, 6 -> A_agent_scope
@@ -85,13 +93,14 @@ class FireCommanderExtreme(object):
         #                     [int(self.world_size-10), int(self.world_size/10), 10, 1]]  # Action Agent #2
         self.agent_state = []
         for i in range(self.perception_agent_num):
-            self.agent_state.append([int(self.world_size-10), int(self.world_size/10), init_alt, 0])  # Perception Agent
+            # self.agent_state.append([int(self.world_size-10), int(self.world_size/10), init_alt, 0])  # Perception Agent
+            self.agent_state.append([int(self.start[0]), int(self.start[1]), init_alt, 0])
         
         for i in range(self.action_agent_num):
             self.agent_state.append([int(self.world_size-10), int(self.world_size/10), init_alt, 1])  # Action Agent
         
         self.comm_hop = comm_range  # number of hops for discrete communication range
-        self.agent_pose_dim = 3  # 3D coordinates
+        self.agent_pose_dim = 2  # 2D v/s 3D coordinates
 
         # initialize the episode transaction
         self.episode = 0
@@ -160,7 +169,7 @@ class FireCommanderExtreme(object):
     def env_step(self, action, p_vel=5, a_vel=5, vert_vel=2, min_alt=5, max_alt=15, time_passed=1, a_c_threshold=1.5, r_func=None):
         self.FOV_list = []
         
-        self.agent_state_update(action, p_vel=p_vel, a_vel=a_vel, vert_vel=vert_vel, min_alt=min_alt, max_alt=max_alt)  # update the agents' states
+        # self.agent_state_update(action, p_vel=p_vel, a_vel=a_vel, vert_vel=vert_vel, min_alt=min_alt, max_alt=max_alt)  # update the agents' states
         self.fire_propagation()          # propagate the fire
 
         # updating the Perception agents' contribution
@@ -254,6 +263,10 @@ class FireCommanderExtreme(object):
             self.reward += 1000.0
 
         return state, self.reward, self.done, self.perception_complete, self.action_complete
+
+    def single_agent_state_update(self, position):
+        self.agent_state[0][0] = position[0]
+        self.agent_state[0][1] = position[1]
 
     # agents' state transisitions: updating individual agents' states [X, Y, Z] according to the taken action
     def agent_state_update(self, action_type, p_vel, a_vel, vert_vel=2, min_alt=5, max_alt=15):
@@ -605,6 +618,29 @@ class FireCommanderExtreme(object):
                 self.previous_terrain_map = np.concatenate((updated_terrain_map, self.new_fire_front))  # fire map with fire decay
                 self.ign_points_all = self.new_fire_front
 
+    def return_fire_at_location(self, loc):
+        """
+        Return the fire intensity at the given location
+        """
+        loc[0] = int(loc[0] * self.world_size)
+        loc[1] = int(loc[1] * self.world_size)
+
+        if self.fire_map.shape[0] > 0:
+            x_fire = self.fire_map[:, 0]
+            y_fire = self.fire_map[:, 1]
+            fire_intensity = self.fire_map[:, 2]
+        
+        # x_fire_scaled = x_fire / self.world_size
+        # y_fire_scaled = y_fire / self.world_size
+
+        # return the fire intensity at the given location, if it is 0, then return intrerpolated value
+        if loc[0] in x_fire and loc[1] in y_fire:
+            return fire_intensity[np.where((x_fire == loc[0]) & (y_fire == loc[1]))]
+        else:
+            interpolated_intensity = griddata((x_fire, y_fire), fire_intensity, loc, method='linear')
+            return interpolated_intensity
+
+    
     # close pygame (only for online visualization option)
     @staticmethod
     def env_close():
@@ -646,7 +682,7 @@ if __name__ == '__main__':
         actions = list(action_p) + list(action_a)
     
         state, reward, done, perception_complete, action_complete = env.env_step(actions, vert_vel=2, min_alt=5, max_alt=15, time_passed=step,
-                                                                                 a_c_threshold=1.1, r_func='RF2')
+                                                                                 a_c_threshold=1.1, r_func='RF3')
 
         print(step)
         env.env_visualize()  # env visualizer, for debugging

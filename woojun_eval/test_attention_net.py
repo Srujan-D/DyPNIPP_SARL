@@ -262,6 +262,7 @@ class AttentionNet(nn.Module):
                         (self.end_embedding(end_position), self.initial_embedding(node_inputs[:, 1:, :])), dim=1)
 
         pos_encoding = self.pos_embedding(pos_encoding)
+        print(embedding_feature.size(), pos_encoding.size())
         embedding_feature = embedding_feature + pos_encoding
 
         sample_size = embedding_feature.size()[1]

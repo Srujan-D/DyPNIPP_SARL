@@ -29,6 +29,9 @@ class Grid:
         # self.formGrid()
         self.createGridGraph()
         self.calcAllPathCost()
+
+        print('collision point size', self.collisionFreePoints.shape)
+        print('edge size', len(self.graph.edges))
         return self.collisionFreePoints, self.graph.edges
     
 
@@ -48,7 +51,7 @@ class Grid:
                 current_node = (i, j)
                 neighbors = [(i-1, j), (i+1, j), (i, j-1), (i, j+1)]  # Grid-like neighbors
                 for neighbor in neighbors:
-                    if 1 <= neighbor[0] < rows-1 and 1 <= neighbor[1] < cols-1:  # Check if neighbor is within grid boundaries
+                    if 0 <= neighbor[0] < rows and 0 <= neighbor[1] < cols:  # Check if neighbor is within grid boundaries
                         if not self.checkPointCollision(current_node) and not self.checkPointCollision(neighbor):
                             if not self.checkLineCollision(current_node, neighbor):
                                 a = str(self.findNodeIndex(current_node))

@@ -24,7 +24,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import os, sys
 import shutil
-from WildFire_Model import WildFire
+from fire_commander.WildFire_Model import WildFire
 import time
 
 

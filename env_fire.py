@@ -6,9 +6,12 @@ from classes import PRMController, Obstacle, Utils
 from classes.Gaussian2D import Gaussian2D
 from matplotlib import pyplot as plt
 from gp_ipp import GaussianProcessForIPP
+# from gp_st_ipp import GaussianProcess as GaussianProcessForIPP
 from parameters import ADAPTIVE_AREA
+from scipy.interpolate import griddata, RegularGridInterpolator, Rbf
 
 
+from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
 
 class Env():
     def __init__(self, sample_size=500, k_size=10, start=None, destination=None, obstacle=[], budget_range=None, save_image=False, seed=None, fixed_env=None):
@@ -26,13 +29,17 @@ class Env():
             self.destination = np.array([destination])
         self.obstacle = obstacle
         self.seed = seed
+
+        # # generate Fire environment
+        self.fire = Fire(online_vis=True, start=self.start[0])
+        self.fire.env_init()
         
         # generate PRM
         # self.prm = None
         # self.node_coords, self.graph = None, None
         # self.start = np.random.rand(1, 2)
         # self.destination = np.random.rand(1, 2)
-        self.prm = PRMController(self.sample_size, self.obstacle, self.start, self.destination, self.budget_range,
+        self.prm = PRMController(self.sample_size, self.obstacle, self.start, self.destination,
                                  self.k_size)
         self.budget = np.random.uniform(*self.budget_range)
         self.node_coords, self.graph = self.prm.runPRM(saveImage=False, seed=seed)
@@ -73,11 +80,15 @@ class Env():
         else:
             np.random.seed(self.seed)
 
-        # underlying distribution
-        self.underlying_distribution = Gaussian2D()
-        self.ground_truth = self.get_ground_truth()
+        # self.fire.env_close()
 
-        self.curr_t = 0.0
+        # # generate Fire environment
+        # self.fire = Fire(online_vis=False)
+        # self.fire.env_init()
+
+        # underlying distribution
+        self.underlying_distribution = self.fire
+        self.ground_truth = self.get_ground_truth()
 
         # initialize gp
         self.gp_ipp = GaussianProcessForIPP(self.node_coords)
@@ -118,8 +129,8 @@ class Env():
                 self.sample = (self.node_coords[next_node_index] - self.node_coords[
                     self.current_node_index]) * next_length / dist + self.sample
             if measurement:
-                observed_value = self.underlying_distribution.distribution_function(
-                    self.sample.reshape(-1, 2)) + np.random.normal(0, 1e-10)
+                observed_value = self.underlying_distribution.return_fire_at_location(
+                    self.sample.reshape(-1, 2)) # + np.random.normal(0, 1e-10)
             else:
                 observed_value = np.array([0])
             self.gp_ipp.add_observed_point(self.sample, observed_value)
@@ -127,6 +138,10 @@ class Env():
             remain_length -= next_length
             next_length = sample_length
             no_sample = False
+
+            self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2))
+            self.fire.env_step()
+            self.get_ground_truth()
 
         self.gp_ipp.update_gp()
         self.node_info, self.node_std = self.gp_ipp.update_node()
@@ -168,11 +183,15 @@ class Env():
                     self.sample = (next_node - current_node) * next_length / dist + current_node
                 else:
                     self.sample = (next_node - current_node) * next_length / dist + self.sample
-                observed_value = self.underlying_distribution.distribution_function(self.sample.reshape(-1, 2)) + np.random.normal(0, 1e-10)
+                observed_value = self.underlying_distribution.return_fire_at_location(self.sample.reshape(-1, 2)) # + np.random.normal(0, 1e-10)
                 self.gp_ipp.add_observed_point(self.sample, observed_value)
                 remain_length -= next_length
                 next_length = sample_length
                 no_sample = False
+
+                self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2))
+                self.fire.env_step()
+                self.get_ground_truth()
 
             self.dist_residual = self.dist_residual + remain_length if no_sample else remain_length
             self.dist_residual_tmp = self.dist_residual
@@ -191,11 +210,69 @@ class Env():
 
         return cov_trace
 
-    def get_ground_truth(self):
+    # def get_ground_truth(self):
+    #     x1 = np.linspace(0, 1, 30)
+    #     x2 = np.linspace(0, 1, 30)
+    #     x1x2 = np.array(list(product(x1, x2)))
+    #     ground_truth = self.underlying_distribution.distribution_function(x1x2)
+    #     return ground_truth
+
+    # def get_ground_truth(self):
+    #     if self.underlying_distribution.fire_map.shape[0] > 0:
+    #         x_fire = self.underlying_distribution.fire_map[:, 0]/self.underlying_distribution.world_size
+    #         y_fire = self.underlying_distribution.fire_map[:, 1]/self.underlying_distribution.world_size
+    #         fire_intensity = self.underlying_distribution.fire_map[:, 2]
+
+    #         # Define grid points for interpolation
+    #         x1 = np.linspace(0, 1, 30)
+    #         x2 = np.linspace(0, 1, 30)
+    #         x1x2 = np.array(list(product(x1, x2)))
+
+    #         # Interpolate fire intensity onto the grid
+    #         ground_truth = griddata((x_fire, y_fire), fire_intensity, x1x2, method='linear', fill_value=0.0)
+
+    #         return ground_truth
+    #     else:
+    #         # If there are no fire locations, return a grid of zeros
+    #         return np.zeros((30, 30))
+
+    def get_ground_truth(self, scale=1):
+        scale = self.underlying_distribution.world_size
+        # Extracting fire map coordinates and intensities
+        if self.underlying_distribution.fire_map.shape[0] > 0:
+            x_fire = self.underlying_distribution.fire_map[:, 0]
+            y_fire = self.underlying_distribution.fire_map[:, 1]
+            fire_intensity = self.underlying_distribution.fire_map[:, 2]
+        
+        # Scaling fire map coordinates between (0,1)
+        x_fire_scaled = x_fire / scale
+        y_fire_scaled = y_fire / scale
+
+        # print(x_fire_scaled, y_fire_scaled)
+        
+        
+        # Creating a grid for ground truth
         x1 = np.linspace(0, 1, 30)
         x2 = np.linspace(0, 1, 30)
-        x1x2 = np.array(list(product(x1, x2)))
-        ground_truth = self.underlying_distribution.distribution_function(x1x2)
+        # x1x2 = np.array(list(product(x1, x2)))
+                
+        # print(x1, x2)
+        # quit()
+        # Interpolating fire intensity values onto the grid
+        # ground_truth = griddata((x_fire_scaled, y_fire_scaled), fire_intensity, x1x2, fill_value='float', method='linear')
+        
+        x1x2 = np.meshgrid(x1, x2)
+        ground_truth = griddata((x_fire_scaled, y_fire_scaled), fire_intensity, (x1x2[0], x1x2[1]), method='cubic')
+        # ground_truth = RegularGridInterpolator((x_fire_scaled, y_fire_scaled), fire_intensity, method='linear')
+        dist_thresh = 0.3
+        distances = np.sqrt((x1x2[0] - np.mean(x_fire_scaled))**2 + (x1x2[1] - np.mean(y_fire_scaled))**2)
+        ground_truth[distances > dist_thresh] = 0.0
+
+        # Reshape ground_truth to match x1x2 shape
+        # ground_truth = ground_truth.reshape((len(x1), len(x2)))
+        ground_truth = ground_truth.reshape(-1)
+        print(ground_truth)
+        quit()
         return ground_truth
 
     def plot(self, route, n, step, path, testID=0, CMAES_route=False, sampling_path=False):

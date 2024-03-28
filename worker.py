@@ -4,7 +4,9 @@ import os
 import imageio
 import numpy as np
 import torch
-from env import Env
+# from env import Env
+# from env_grid import Env
+from env_fire import Env
 from attention_net import AttentionNet
 from parameters import *
 import scipy.signal as signal
@@ -50,7 +52,8 @@ class Worker:
         edge_inputs = []
         for node in graph:
             node_edges = list(map(int, node))
-            edge_inputs.append(node_edges)
+            if len(node_edges) >= 4:
+                edge_inputs.append(node_edges)
 
         pos_encoding = self.calculate_position_embedding(edge_inputs)
         pos_encoding = torch.from_numpy(pos_encoding).float().unsqueeze(0).to(self.device) # (1, sample_size+2, 32)
@@ -71,6 +74,12 @@ class Worker:
             episode_buffer[12] += pos_encoding
 
             with torch.no_grad():
+                # print('node input size is ', node_inputs.size())
+                # print('edge input size is ', edge_inputs.size())
+                # print('budget input size is ', budget_inputs.size())
+                # print('pos_encoding size is ', pos_encoding.size())
+                # print('mask size is ', mask.size())
+                # quit()
                 logp_list, value, LSTM_h, LSTM_c = self.local_net(node_inputs, edge_inputs, budget_inputs, current_index, LSTM_h, LSTM_c, pos_encoding, mask)
             # next_node (1), logp_list (1, 10), value (1,1,1)
             if self.greedy:
@@ -143,6 +152,7 @@ class Worker:
                     perf_metrics['cov_trace'] = self.env.cov_trace
                     perf_metrics['success_rate'] = False
                     print('{} Overbudget!'.format(i))
+                self.env.fire.env_close()
                 break
         if not done:
             episode_buffer[6] = episode_buffer[4][1:]

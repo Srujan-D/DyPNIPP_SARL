@@ -10,7 +10,8 @@ import sys
 # sys.path.append('..')
 sys.path.append('/data/srujan/research/catnipp')
 # from env_real import Env
-from env_grid import Env
+# from env_grid import Env
+from env_fire import Env
 # from attention_net import AttentionNet
 import scipy.signal as signal
 from multiprocessing import Pool
@@ -30,7 +31,7 @@ class WorkerTestReal:
         self.save_image = save_image
         self.sample_length = sample_length
         self.seed = seed
-        self.env = Env(sample_size=SAMPLE_SIZE, start=(0,0), destination=(1,1), k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image, seed=seed, fixed_env=FIXED_ENV, env_size=30)
+        self.env = Env(sample_size=SAMPLE_SIZE, start=(0,0), destination=(1,1), k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image, seed=seed, fixed_env=FIXED_ENV) #, env_size=30)
 
         self.local_net = localNetwork
         self.perf_metrics = None
@@ -61,11 +62,12 @@ class WorkerTestReal:
         edge_inputs = []
         for node in graph:
             node_edges = list(map(int, node))
-            edge_inputs.append(node_edges)
+            if len(node_edges) == 4:
+                edge_inputs.append(node_edges)
 
         pos_encoding = self.calculate_position_embedding(edge_inputs)
         pos_encoding = torch.from_numpy(pos_encoding).float().unsqueeze(0).to(self.device) # (1, sample_size+2, 32)
-        print(edge_inputs)
+        # print(edge_inputs)
         # quit()
         edge_inputs = torch.tensor(edge_inputs).unsqueeze(0).to(self.device) # (1, sample_size+2, k_size)
 
@@ -133,7 +135,7 @@ class WorkerTestReal:
                     perf_metrics['planning_time'] = self.planning_time
                     print('{} Goodbye world! We did it!'.format(i))
                 break
-
+        self.env.fire.env_close()
         print('route is ', route)
         # save gif
         if self.save_image:

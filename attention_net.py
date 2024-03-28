@@ -285,6 +285,8 @@ class AttentionNet(nn.Module):
         batch_size = edge_inputs.size()[0]
         sample_size = edge_inputs.size()[1]
         k_size = edge_inputs.size()[2]
+        # print('ks',k_size)
+        # quit()
         current_edge = torch.gather(edge_inputs, 1, current_index.repeat(1, 1, k_size))
         # print(current_edge)
         current_edge = current_edge.permute(0, 2, 1)

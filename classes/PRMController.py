@@ -15,7 +15,7 @@ from .Utils import Utils
 
 
 class PRMController:
-    def __init__(self, sample_size, allObs, start, destination, budget_range, k_size):
+    def __init__(self, sample_size, allObs, start, destination, k_size):
         self.sample_size = sample_size
         self.node_coords = np.array([])
         self.allObs = allObs
@@ -47,9 +47,11 @@ class PRMController:
         # Search for shortest path from start to end node - Using Dijksta's shortest path alg
         # self.shortestPath()
 
-        # if saveImage:
-        #     self.plotPoints(self.collisionFreePoints)
-
+        if saveImage:
+            self.plotPoints(self.collisionFreePoints)
+        
+        print('collision point size', self.collisionFreePoints.shape)
+        print('edge size', len(self.graph.edges))
         return self.collisionFreePoints, self.graph.edges
 
     def genCoords(self):
@@ -96,10 +98,10 @@ class PRMController:
                         b = str(self.findNodeIndex(neighbour))
                         self.graph.add_node(a)
                         self.graph.add_edge(a, b, distances[i, j])
-                        # if save_image:
-                        #     x = [p[0], neighbour[0]]
-                        #     y = [p[1], neighbour[1]]
-                        #     plt.plot(x, y, c='tan', alpha=0.4)
+                        if save_image:
+                            x = [p[0], neighbour[0]]
+                            y = [p[1], neighbour[1]]
+                            plt.plot(x, y, c='tan', alpha=0.4)
 
     def calcAllPathCost(self):
         for coord in self.collisionFreePoints:
@@ -172,11 +174,13 @@ class PRMController:
         return self.collisionFreePoints[int(n)]
 
     def plotPoints(self, points):
+        print('in plot points---------------------')
         x = [item[0] for item in points]
         y = [item[1] for item in points]
         # plt.scatter(x, y, c=info, cmap='Blues', s=5, zorder=10)
         plt.scatter(x,y)
         plt.colorbar()
+        plt.savefig('points.png')
 
     def checkCollision(self, obs, point):
         p_x = point[0]

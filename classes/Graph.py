@@ -86,10 +86,10 @@ def dijkstra(graph, source):
 def to_array(prev, from_node):
     """Creates an ordered list of labels as a route."""
     try:
-        print('in to array------------')
+        # print('in to array------------')
         previous_node = prev[from_node]
     except:
-        # print(prev, from_node)
+        print(prev, from_node)
         quit()
     route = [from_node]
 
