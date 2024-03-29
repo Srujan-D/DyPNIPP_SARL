@@ -26,7 +26,7 @@ DECREASE_GAMMA = None
 FIT_GAMMA = None
 
 
-SEED = 1
+SEED = 2
 
 FIXED_ENV= 2  # None 1 2 3 
 ################################################################

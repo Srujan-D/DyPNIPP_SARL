@@ -16,6 +16,13 @@ from test_runner import Runner
 from test_worker_real import WorkerTestReal as WorkerTest
 from test_parameters import *
 
+import cProfile
+import signal
+
+def signal_handler(sig, frame):
+    print("\nCtrl+C detected. Exiting.")
+    ray.shutdown()
+    sys.exit(0)
 
 def run_test(seed, global_network, checkpoint, device, local_device, result_path_, model_idx=0):
     time0 = time.time()
@@ -48,6 +55,11 @@ def run_test(seed, global_network, checkpoint, device, local_device, result_path
     budget_history = []
     obj_history = []
     obj2_history = []
+    
+    # signal.signal(signal.SIGINT, signal_handler)
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     try:
         while True:
             jobList = []
@@ -121,7 +133,10 @@ def run_test(seed, global_network, checkpoint, device, local_device, result_path
         return cov_trace_list
 
     except KeyboardInterrupt:
-        print("CTRL_C pressed. Killing remote workers")
+        print(">>> CTRL_C pressed. Killing remote workers")
+        profiler.disable()
+        profiler.print_stats(sort='cumulative')
+
         for a in meta_agents:
             ray.kill(a)
 

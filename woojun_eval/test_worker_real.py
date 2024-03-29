@@ -5,7 +5,6 @@ import numpy as np
 import time
 import ray
 import torch
-# from env import Env
 import sys
 # sys.path.append('..')
 sys.path.append('/data/srujan/research/catnipp')
@@ -62,8 +61,8 @@ class WorkerTestReal:
         edge_inputs = []
         for node in graph:
             node_edges = list(map(int, node))
-            if len(node_edges) == 4:
-                edge_inputs.append(node_edges)
+            # if len(node_edges) == 4:
+            edge_inputs.append(node_edges)
 
         pos_encoding = self.calculate_position_embedding(edge_inputs)
         pos_encoding = torch.from_numpy(pos_encoding).float().unsqueeze(0).to(self.device) # (1, sample_size+2, 32)
