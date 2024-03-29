@@ -16,6 +16,7 @@ import scipy.signal as signal
 from multiprocessing import Pool
 from test_parameters import *
 
+import time
 
 def discount(x, gamma):
     return signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
@@ -30,7 +31,7 @@ class WorkerTestReal:
         self.save_image = save_image
         self.sample_length = sample_length
         self.seed = seed
-        self.env = Env(sample_size=SAMPLE_SIZE, start=(0,0), destination=(1,1), k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image, seed=seed, fixed_env=FIXED_ENV) #, env_size=30)
+        self.env = Env(sample_size=SAMPLE_SIZE, start=(0,0), destination=(1,1), k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image, seed=seed, fixed_env=FIXED_ENV, adaptive_th=ADAPTIVE_TH, adaptive_area=ADAPTIVE_AREA) #, env_size=30)
 
         self.local_net = localNetwork
         self.perf_metrics = None
@@ -99,7 +100,10 @@ class WorkerTestReal:
 
             next_node_index = edge_inputs[:, current_index.item(), action_index.item()]
             route.append(next_node_index.item())
+            # time1 = time.time()
             reward, done, node_info, node_std, remain_budget = self.env.step(next_node_index.item(), self.sample_length)
+            # time2 = time.time()
+            # print(">>> Step {} took {:.5f} seconds".format(i, time2-time1))
             self.budget_history.append(budget-remain_budget)
             self.obj_history.append(self.env.cov_trace)
             self.obj2_history.append(self.env.RMSE)
@@ -150,7 +154,10 @@ class WorkerTestReal:
         if TRAJECTORY_SAMPLING:
             self.perf_metrics = self.run_trajectory_sampling_episode(currEpisode, testID)
         else:
+            start = time.time()
             self.perf_metrics = self.run_episode(currEpisode, testID, model_idx=model_idx)
+            end = time.time()
+            print(">>> Episode {} took {:.5f} seconds".format(currEpisode, end-start))
         return self.perf_metrics
 
     def run_trajectory_sampling_episode(self, currEpisode, testID):

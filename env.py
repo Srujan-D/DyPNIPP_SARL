@@ -32,7 +32,7 @@ class Env():
         # self.node_coords, self.graph = None, None
         # self.start = np.random.rand(1, 2)
         # self.destination = np.random.rand(1, 2)
-        self.prm = PRMController(self.sample_size, self.obstacle, self.start, self.destination, self.budget_range,
+        self.prm = PRMController(self.sample_size, self.obstacle, self.start, self.destination, #self.budget_range,
                                  self.k_size)
         self.budget = np.random.uniform(*self.budget_range)
         self.node_coords, self.graph = self.prm.runPRM(saveImage=False, seed=seed)

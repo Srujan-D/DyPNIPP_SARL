@@ -25,7 +25,7 @@ class Worker:
         self.sample_length = sample_length
         self.sample_size = sample_size
 
-        self.env = Env(sample_size=self.sample_size, k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image)
+        self.env = Env(sample_size=self.sample_size, k_size=K_SIZE, budget_range=budget_range, save_image=self.save_image, adaptive_th=ADAPTIVE_TH, adaptive_area=ADAPTIVE_AREA)
         # self.local_net = AttentionNet(2, 128, device=self.device)
         # self.local_net.to(device)
         self.local_net = localNetwork
@@ -152,7 +152,7 @@ class Worker:
                     perf_metrics['cov_trace'] = self.env.cov_trace
                     perf_metrics['success_rate'] = False
                     print('{} Overbudget!'.format(i))
-                self.env.fire.env_close()
+                # self.env.fire.env_close()
                 break
         if not done:
             episode_buffer[6] = episode_buffer[4][1:]

@@ -13,10 +13,10 @@
 #
 """
 
-# Import the PyGame package
-import pygame
+# # Import the PyGame package
+# import pygame
 
-from pygame.locals import *
+# from pygame.locals import *
 from sys import exit
 import pickle
 import numpy as np
@@ -33,19 +33,19 @@ class EnvUtilities(object):
     # The function to plot the target
     # Input value: current screen, target loci infomation list, target center postion (X, Y), target size (X, Y), the flag to plot the edge or not
     # Output value: the updated list
-    @staticmethod
-    def target_Plot(screen, target_info):
-        for i in range(len(target_info)):
-            for j in range(len(target_info[i])):
-                # The coordination of the upper-left corner of target
-                target_Upper_Left_Corner = (target_info[i][j][0] - 5, target_info[i][j][1] - 5)
-                target_Size = (10, 10)
-                # Plot the normaltarget, fill the rectangle with orange
-                if target_info[i][j][2] == 0:
-                    pygame.draw.rect(screen, (255, 165, 0), Rect(target_Upper_Left_Corner, target_Size))
+    # @staticmethod
+    # def target_Plot(screen, target_info):
+    #     for i in range(len(target_info)):
+    #         for j in range(len(target_info[i])):
+    #             # The coordination of the upper-left corner of target
+    #             target_Upper_Left_Corner = (target_info[i][j][0] - 5, target_info[i][j][1] - 5)
+    #             target_Size = (10, 10)
+    #             # Plot the normaltarget, fill the rectangle with orange
+    #             if target_info[i][j][2] == 0:
+    #                 pygame.draw.rect(screen, (255, 165, 0), Rect(target_Upper_Left_Corner, target_Size))
 
-                elif target_info[i][j][2] == 1:
-                    pygame.draw.rect(screen, (255, 255, 255), Rect(target_Upper_Left_Corner, target_Size))
+    #             elif target_info[i][j][2] == 1:
+    #                 pygame.draw.rect(screen, (255, 255, 255), Rect(target_Upper_Left_Corner, target_Size))
 
     # The function fire_Data_Storage is used to separate the fire spots in different regions for storage
     # Input: The number of the ignited fire spots, the whole fire map, the generated fire spot, the size of the
@@ -144,8 +144,12 @@ class EnvUtilities(object):
 
             size_x = lower_x - upper_x + 1
             size_y = lower_y - upper_y + 1
-
-            FOV = np.zeros((size_x, size_y), dtype=float)
+            try:
+                FOV = np.zeros((size_x, size_y), dtype=float)
+            except:
+                print('>>> Error: ', size_x, size_y)
+                print(agent_loci)
+                quit()
 
             for i in range(len(raw_sensed_idx)):
                 tmp_x, tmp_y = onFire_List[raw_sensed_idx[i]]
@@ -251,29 +255,29 @@ class EnvUtilities(object):
 
         return onFire_List_raw, sensed_List, pruned_List, new_fire_front, target_onFire_list
 
-    # This function intends to plot the sensed fire spot on the screen
-    # Input: current screen, sensed fire spot list
-    @staticmethod
-    def sensed_Fire_Spot_Plot(screen, sensed_List):
-        # Search for all the sensing agents' data
-        for i in range(len(sensed_List)):
-            # Plot the fire spot using the red color the corresponds to the intensity
-            pygame.draw.circle(screen, (255, 0, 0),(int(sensed_List[i][0]), int(sensed_List[i][1])), 1)
+    # # This function intends to plot the sensed fire spot on the screen
+    # # Input: current screen, sensed fire spot list
+    # @staticmethod
+    # def sensed_Fire_Spot_Plot(screen, sensed_List):
+    #     # Search for all the sensing agents' data
+    #     for i in range(len(sensed_List)):
+    #         # Plot the fire spot using the red color the corresponds to the intensity
+    #         pygame.draw.circle(screen, (255, 0, 0),(int(sensed_List[i][0]), int(sensed_List[i][1])), 1)
 
-    # This function intends to plot the pruned fire spot on the screen
-    # Input: current screen, pruned fire spot list
-    @staticmethod
-    def pruned_Fire_Spot_Plot(screen, pruned_List):
-        # Search for all the sensing agents' data
-        for i in range(len(pruned_List)):
-            # Plot the fire spot using the red color the corresponds to the intensity
-            pygame.draw.circle(screen, (0, 0, 0),(int(pruned_List[i][0]), int(pruned_List[i][1])), 1)
+    # # This function intends to plot the pruned fire spot on the screen
+    # # Input: current screen, pruned fire spot list
+    # @staticmethod
+    # def pruned_Fire_Spot_Plot(screen, pruned_List):
+    #     # Search for all the sensing agents' data
+    #     for i in range(len(pruned_List)):
+    #         # Plot the fire spot using the red color the corresponds to the intensity
+    #         pygame.draw.circle(screen, (0, 0, 0),(int(pruned_List[i][0]), int(pruned_List[i][1])), 1)
 
-    # This function intends to plot the onFire fire spot on the screen
-    # Input: current screen, onFire fire spot list
-    @staticmethod
-    def on_Fire_Spot_Plot(screen, sensed_List):
-        # Search for all the sensing agents' data
-        for i in range(len(sensed_List)):
-            # Plot the fire spot using the red color the corresponds to the intensity
-            pygame.draw.circle(screen, (0, 255, 255),(int(sensed_List[i][0]), int(sensed_List[i][1])), 1)
+    # # This function intends to plot the onFire fire spot on the screen
+    # # Input: current screen, onFire fire spot list
+    # @staticmethod
+    # def on_Fire_Spot_Plot(screen, sensed_List):
+    #     # Search for all the sensing agents' data
+    #     for i in range(len(sensed_List)):
+    #         # Plot the fire spot using the red color the corresponds to the intensity
+    #         pygame.draw.circle(screen, (0, 255, 255),(int(sensed_List[i][0]), int(sensed_List[i][1])), 1)

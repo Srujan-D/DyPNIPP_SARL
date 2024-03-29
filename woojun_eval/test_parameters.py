@@ -26,7 +26,7 @@ DECREASE_GAMMA = None
 FIT_GAMMA = None
 
 
-SEED = 2
+SEED = 1
 
 FIXED_ENV= 2  # None 1 2 3 
 ################################################################
@@ -107,4 +107,4 @@ SAMPLE_SIZE = 400
 K_SIZE = 20
 SAMPLE_LENGTH = 0.2 # 0/None: sample at nodes
 ADAPTIVE_AREA = True
-ADAPTIVE_TH = 0.1
+ADAPTIVE_TH = 100

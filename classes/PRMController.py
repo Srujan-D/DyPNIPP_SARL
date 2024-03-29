@@ -47,11 +47,11 @@ class PRMController:
         # Search for shortest path from start to end node - Using Dijksta's shortest path alg
         # self.shortestPath()
 
-        if saveImage:
-            self.plotPoints(self.collisionFreePoints)
+        # if saveImage:
+        #     self.plotPoints(self.collisionFreePoints)
         
-        print('collision point size', self.collisionFreePoints.shape)
-        print('edge size', len(self.graph.edges))
+        # print('collision point size', self.collisionFreePoints.shape)
+        # print('edge size', len(self.graph.edges))
         return self.collisionFreePoints, self.graph.edges
 
     def genCoords(self):
@@ -174,7 +174,7 @@ class PRMController:
         return self.collisionFreePoints[int(n)]
 
     def plotPoints(self, points):
-        print('in plot points---------------------')
+        # print('in plot points---------------------')
         x = [item[0] for item in points]
         y = [item[1] for item in points]
         # plt.scatter(x, y, c=info, cmap='Blues', s=5, zorder=10)

@@ -1,4 +1,5 @@
 import os
+import math
 import copy
 import numpy as np
 from itertools import product
@@ -7,14 +8,17 @@ from classes.Gaussian2D import Gaussian2D
 from matplotlib import pyplot as plt
 from gp_ipp import GaussianProcessForIPP
 # from gp_st_ipp import GaussianProcess as GaussianProcessForIPP
-from parameters import ADAPTIVE_AREA
+# from parameters import ADAPTIVE_AREA
 from scipy.interpolate import griddata, RegularGridInterpolator, Rbf
-
+from numba import jit
+import time
 
 from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
 
 class Env():
-    def __init__(self, sample_size=500, k_size=10, start=None, destination=None, obstacle=[], budget_range=None, save_image=False, seed=None, fixed_env=None):
+    def __init__(self, sample_size=500, k_size=10, start=None, destination=None, obstacle=[], budget_range=None, save_image=False, seed=None, fixed_env=None, adaptive_th=None, adaptive_area=False):
+        self.ADAPTIVE_TH = adaptive_th
+        self.ADAPTIVE_AREA = adaptive_area
         self.sample_size = sample_size
         self.k_size = k_size
         self.budget_range = budget_range
@@ -31,7 +35,7 @@ class Env():
         self.seed = seed
 
         # # generate Fire environment
-        self.fire = Fire(online_vis=True, start=self.start[0])
+        self.fire = Fire(world_size=30, online_vis=True, start=self.start[0])
         self.fire.env_init()
         
         # generate PRM
@@ -90,9 +94,20 @@ class Env():
         self.underlying_distribution = self.fire
         self.ground_truth = self.get_ground_truth()
 
+        # # randomly choose 50 samples from ground truth as initial data
+        sample_index = np.random.choice(900, 50, replace=False)
+        x1x2 = np.array(list(product(np.linspace(0, 1, 30), np.linspace(0, 1, 30))))
+        samples = x1x2[sample_index]
+        observed_values = np.array([self.ground_truth[sample_index]]).T
+
+
         # initialize gp
         self.gp_ipp = GaussianProcessForIPP(self.node_coords)
-        self.high_info_area = self.gp_ipp.get_high_info_area() if ADAPTIVE_AREA else None
+        for sample, observed_value in zip(samples, observed_values):
+            self.gp_ipp.add_observed_point(sample, observed_value[0])
+        self.gp_ipp.update_gp()
+
+        self.high_info_area = self.gp_ipp.get_high_info_area(t=self.ADAPTIVE_TH) if self.ADAPTIVE_AREA else None
         self.node_info, self.node_std = self.gp_ipp.update_node()
         
         # initialize evaluations
@@ -130,24 +145,38 @@ class Env():
                     self.current_node_index]) * next_length / dist + self.sample
             if measurement:
                 observed_value = self.underlying_distribution.return_fire_at_location(
-                    self.sample.reshape(-1, 2)) # + np.random.normal(0, 1e-10)
+                    self.sample.reshape(-1, 2)[0]) # + np.random.normal(0, 1e-10)
             else:
                 observed_value = np.array([0])
+            # print(">>> Observed value is ", observed_value)
+            # if math.isnan(observed_value):
+            #     print('nan value')
+            #     quit()
             self.gp_ipp.add_observed_point(self.sample, observed_value)
 
             remain_length -= next_length
             next_length = sample_length
             no_sample = False
 
-            self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2))
-            self.fire.env_step()
-            self.get_ground_truth()
-
+            self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2)[0])
+            # time1 = time.time()
+            fire_state, fire_reward, fire_done, fire_perception_complete, fire_action_complete, interp_fire_intensity = self.fire.env_step(r_func='RF4')
+            # time2 = time.time()
+            # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
+            reward += fire_reward
+            self.set_ground_truth(fire_map=interp_fire_intensity)
+        # time1 = time.time()
         self.gp_ipp.update_gp()
+        # time2 = time.time()
+        # print(f">>> Time to update GP: {time2 - time1:.4f}")
+        # time1 = time.time()
         self.node_info, self.node_std = self.gp_ipp.update_node()
+        # time2 = time.time()
+        # print(f">>> Time to update node: {time2 - time1:.4f}")
 
+        # time1 = time.time()
         if measurement:
-            self.high_info_area = self.gp_ipp.get_high_info_area() if ADAPTIVE_AREA else None
+            self.high_info_area = self.gp_ipp.get_high_info_area(t=self.ADAPTIVE_TH) if self.ADAPTIVE_AREA else None
         #F1score = self.gp_ipp.evaluate_F1score(self.ground_truth)
             RMSE = self.gp_ipp.evaluate_RMSE(self.ground_truth)
             self.RMSE = RMSE
@@ -168,8 +197,9 @@ class Env():
         self.current_node_index = next_node_index
         self.route.append(next_node_index)
         assert self.budget >= 0  # Dijsktra filter
-         
-        return reward, done, self.node_info, self.node_std, self.budget, 0
+        # time2 = time.time()
+        # print(f">>> Time to evaluate cov trace: {time2 - time1:.4f}")
+        return reward, done, self.node_info, self.node_std, self.budget
 
     def route_step(self, route, sample_length, measurement=True):
         current_node = route[0]
@@ -183,15 +213,16 @@ class Env():
                     self.sample = (next_node - current_node) * next_length / dist + current_node
                 else:
                     self.sample = (next_node - current_node) * next_length / dist + self.sample
-                observed_value = self.underlying_distribution.return_fire_at_location(self.sample.reshape(-1, 2)) # + np.random.normal(0, 1e-10)
+                observed_value = self.underlying_distribution.return_fire_at_location(self.sample.reshape(-1, 2)[0]) # + np.random.normal(0, 1e-10)
                 self.gp_ipp.add_observed_point(self.sample, observed_value)
                 remain_length -= next_length
                 next_length = sample_length
                 no_sample = False
 
-                self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2))
-                self.fire.env_step()
-                self.get_ground_truth()
+                self.underlying_distribution.single_agent_state_update(self.sample.reshape(-1, 2)[0])
+                fire_state, fire_reward, fire_done, fire_perception_complete, fire_action_complete, interp_fire_intensity = self.fire.env_step()
+                reward += fire_reward
+                self.set_ground_truth(fire_map=interp_fire_intensity)
 
             self.dist_residual = self.dist_residual + remain_length if no_sample else remain_length
             self.dist_residual_tmp = self.dist_residual
@@ -202,7 +233,7 @@ class Env():
         self.gp_ipp.update_gp()
 
         if measurement:
-            self.high_info_area = self.gp_ipp.get_high_info_area() if ADAPTIVE_AREA else None
+            self.high_info_area = self.gp_ipp.get_high_info_area(t=self.ADAPTIVE_TH) if self.ADAPTIVE_AREA else None
             cov_trace = self.gp_ipp.evaluate_cov_trace(self.high_info_area)
             self.cov_trace = cov_trace
         else:
@@ -210,70 +241,108 @@ class Env():
 
         return cov_trace
 
-    # def get_ground_truth(self):
-    #     x1 = np.linspace(0, 1, 30)
-    #     x2 = np.linspace(0, 1, 30)
-    #     x1x2 = np.array(list(product(x1, x2)))
-    #     ground_truth = self.underlying_distribution.distribution_function(x1x2)
-    #     return ground_truth
+    @staticmethod
+    @jit(nopython=True, parallel=True, fastmath=True)
+    def calc_fire_intensity_in_field(fire_map, world_size=100):
+        field_intensity = np.zeros((world_size, world_size))
 
-    # def get_ground_truth(self):
-    #     if self.underlying_distribution.fire_map.shape[0] > 0:
-    #         x_fire = self.underlying_distribution.fire_map[:, 0]/self.underlying_distribution.world_size
-    #         y_fire = self.underlying_distribution.fire_map[:, 1]/self.underlying_distribution.world_size
-    #         fire_intensity = self.underlying_distribution.fire_map[:, 2]
+        for i in range(fire_map.shape[0]):
+            x, y, intensity = fire_map[i]
+            m = min(int(x), field_intensity.shape[0] - 1)
+            n = min(int(y), field_intensity.shape[1] - 1)
 
-    #         # Define grid points for interpolation
-    #         x1 = np.linspace(0, 1, 30)
-    #         x2 = np.linspace(0, 1, 30)
-    #         x1x2 = np.array(list(product(x1, x2)))
+            if field_intensity[m, n] > 0:
+                field_intensity[m, n] = max(field_intensity[m, n], intensity)
+            else:
+                field_intensity[m, n] = intensity
 
-    #         # Interpolate fire intensity onto the grid
-    #         ground_truth = griddata((x_fire, y_fire), fire_intensity, x1x2, method='linear', fill_value=0.0)
+        not_on_fire = np.ones((world_size, world_size))
 
-    #         return ground_truth
-    #     else:
-    #         # If there are no fire locations, return a grid of zeros
-    #         return np.zeros((30, 30))
+        for i in range(world_size):
+            for j in range(world_size):
+                if field_intensity[i, j] > 0:
+                    not_on_fire[i, j] = 0
+
+        on_fire_indices = np.nonzero(field_intensity)  # Get indices of points that are on fire
+
+        for i in range(not_on_fire.shape[0]):
+            for j in range(not_on_fire.shape[1]):
+                if not_on_fire[i, j] == 1:  # If the point is not on fire
+                    neighboring_points = []
+                    for k in range(len(on_fire_indices[0])):
+                        x_, y_ = on_fire_indices[0][k], on_fire_indices[1][k]
+                        distance_squared = (x_ - i)**2 + (y_ - j)**2
+                        if distance_squared <= 2:
+                            neighboring_points.append(field_intensity[x_, y_])
+
+                    if len(neighboring_points) != 0:
+                        field_intensity[i, j] = np.mean(np.array(neighboring_points))
+        
+        return field_intensity
+    # def calc_fire_intensity_in_field(self, fire_map):
+    #     """
+    #     input: fire_map, shape = (n, 3), n: number of fire spots, 3: (x, y, intensity)
+    #     output: field_intensity - fire_intensity at each location in field, shape: (world_size, world_size)
+    #     """
+    #     world_size = self.underlying_distribution.world_size
+    #     field_intensity = np.zeros((world_size, world_size))
+    #     for i in range(fire_map.shape[0]):
+    #         x, y, intensity = fire_map[i]
+    #         m = min(int(x), field_intensity.shape[0] - 1)
+    #         n = min(int(y), field_intensity.shape[1] - 1)
+            
+    #         try:
+    #             if field_intensity[m, n] > 0:
+    #                 field_intensity[m, n] = max(
+    #                     field_intensity[m, n], intensity
+    #                 )
+    #             else:
+    #                 field_intensity[m, n] = intensity
+    #         except:
+    #             print(field_intensity.shape, m, n)
+    #             break
+
+    #     not_on_fire = np.ones((world_size, world_size))
+    #     not_on_fire[field_intensity > 0] = 0
+    #     not_on_fire = np.argwhere(not_on_fire == 1)
+
+    #     # get the points that are on fire
+    #     on_fire = np.argwhere(field_intensity > 0)
+
+    #     for i in range(not_on_fire.shape[0]):
+    #         x, y = not_on_fire[i]
+    #         neighboring_points = []
+    #         for j in range(on_fire.shape[0]):
+    #             x_, y_ = on_fire[j]
+    #             if np.linalg.norm(np.array([x, y]) - np.array([x_, y_])) <= 1:
+    #                 neighboring_points.append(field_intensity[x_, y_])
+
+    #         if len(neighboring_points) != 0:
+    #             field_intensity[x, y] = np.mean(neighboring_points)
+    #         else:
+    #             field_intensity[x, y] = 0
+
+    #     return field_intensity
 
     def get_ground_truth(self, scale=1):
         scale = self.underlying_distribution.world_size
-        # Extracting fire map coordinates and intensities
-        if self.underlying_distribution.fire_map.shape[0] > 0:
-            x_fire = self.underlying_distribution.fire_map[:, 0]
-            y_fire = self.underlying_distribution.fire_map[:, 1]
-            fire_intensity = self.underlying_distribution.fire_map[:, 2]
-        
-        # Scaling fire map coordinates between (0,1)
-        x_fire_scaled = x_fire / scale
-        y_fire_scaled = y_fire / scale
-
-        # print(x_fire_scaled, y_fire_scaled)
-        
-        
-        # Creating a grid for ground truth
-        x1 = np.linspace(0, 1, 30)
-        x2 = np.linspace(0, 1, 30)
-        # x1x2 = np.array(list(product(x1, x2)))
-                
-        # print(x1, x2)
-        # quit()
-        # Interpolating fire intensity values onto the grid
-        # ground_truth = griddata((x_fire_scaled, y_fire_scaled), fire_intensity, x1x2, fill_value='float', method='linear')
-        
-        x1x2 = np.meshgrid(x1, x2)
-        ground_truth = griddata((x_fire_scaled, y_fire_scaled), fire_intensity, (x1x2[0], x1x2[1]), method='cubic')
-        # ground_truth = RegularGridInterpolator((x_fire_scaled, y_fire_scaled), fire_intensity, method='linear')
-        dist_thresh = 0.3
-        distances = np.sqrt((x1x2[0] - np.mean(x_fire_scaled))**2 + (x1x2[1] - np.mean(y_fire_scaled))**2)
-        ground_truth[distances > dist_thresh] = 0.0
-
-        # Reshape ground_truth to match x1x2 shape
-        # ground_truth = ground_truth.reshape((len(x1), len(x2)))
+           
+        ground_truth = Env.calc_fire_intensity_in_field(self.underlying_distribution.fire_map, self.underlying_distribution.world_size)
+        # ground_truth = self.underlying_distribution.fire_map[:, 2]
+        ground_truth = Utils.compress_and_average(array=ground_truth, new_shape=(30, 30))
         ground_truth = ground_truth.reshape(-1)
-        print(ground_truth)
-        quit()
+
         return ground_truth
+    
+    def set_ground_truth(self, fire_map):
+        # print(">>> Max fire intensity: ", np.max(fire_map))
+        # time1 = time.time()
+        ground_truth = Utils.compress_and_average(array=fire_map, new_shape=(30, 30))
+        # time2 = time.time()
+        # print(f">>> Time to compress and average: {time2 - time1:.4f}")
+        # print(">>> Max fire intensity after compression: ", np.max(ground_truth))
+        self.ground_truth = ground_truth.reshape(-1)
+        del ground_truth
 
     def plot(self, route, n, step, path, testID=0, CMAES_route=False, sampling_path=False):
         # Plotting shorest path
