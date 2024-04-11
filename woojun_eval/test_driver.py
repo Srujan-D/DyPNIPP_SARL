@@ -72,6 +72,7 @@ def run_test(seed, global_network, checkpoint, device, local_device, result_path
             for job in done_jobs:
                 metrics, info = job
                 episode_number_list.append(info['episode_number'])
+                print(">>> Metrics keys : ", metrics.keys())
                 cov_trace_list.append(metrics['cov_trace'])
                 time_list.append(metrics['planning_time'])
                 for n in metric_name:

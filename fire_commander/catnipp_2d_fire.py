@@ -24,6 +24,8 @@ from scipy.interpolate import griddata
 import time
 Agent_Util = EnvUtilities()
 
+from scipy.ndimage import gaussian_filter
+
 from numba import jit
 
 # Full FireCommander Environment with Battery and Tanker Capacity Limitations
@@ -276,7 +278,7 @@ class FireCommanderExtreme(object):
             self.done = True
             self.reward += 1000.0
 
-        return state, self.reward, self.done, self.perception_complete, self.action_complete, self.interp_fire_intensity
+        return state, self.reward, self.done, self.perception_complete, self.action_complete, self.interp_fire_intensity/self.interp_fire_intensity.max()
 
     def single_agent_state_update(self, loc):
         # print(">>> Updating the agent's state to: ", loc)
@@ -584,7 +586,7 @@ class FireCommanderExtreme(object):
             self.fire_map = np.array(self.fire_map)
             self.fire_map_spec = self.ign_points_all
             self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(self.fire_map, self.world_size)
-
+            self.interp_fire_intensity = gaussian_filter(self.interp_fire_intensity, sigma=1.5)
         # the lists to store the firespots in different state, coordinates only
         self.onFire_List = []  # the onFire_List, store the points currently on fire (sensed points included, pruned points excluded)
         self.sensed_List = []  # the sensed_List, store the points currently on fire and have been sensed by agents
@@ -653,6 +655,7 @@ class FireCommanderExtreme(object):
         # print(">>> Max fire intensity: ", np.max(self.fire_map[:, 2]))
         # time1 = time.time()
         self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(self.fire_map, self.world_size)
+        self.interp_fire_intensity = gaussian_filter(self.interp_fire_intensity, sigma=1.5)
         # time2 = time.time()
         # print(">>> Interpolation Time: {:.4f}".format(time2 - time1))
 
@@ -693,80 +696,10 @@ class FireCommanderExtreme(object):
                     if len(neighboring_points) != 0:
                         field_intensity[i, j] = np.mean(np.array(neighboring_points))
         
+        # # apply gaussian filter to smooth the fire intensity
+        # field_intensity = gaussian_filter(field_intensity, sigma=1.5)
+
         return field_intensity
-    # def calc_fire_intensity_in_field(fire_map, world_size=100):
-    #     """
-    #     input: fire_map, shape = (n, 3), n: number of fire spots, 3: (x, y, intensity)
-    #     output: field_intensity - fire_intensity at each location in field, shape: (world_size, world_size)
-    #     """
-    #     field_intensity = np.zeros((world_size, world_size))
-    #     for i in range(fire_map.shape[0]):
-    #         x, y, intensity = fire_map[i]
-    #         m = min(int(x), field_intensity.shape[0] - 1)
-    #         n = min(int(y), field_intensity.shape[1] - 1)
-            
-    #         try:
-    #             if field_intensity[m, n] > 0:
-    #                 field_intensity[m, n] = max(
-    #                     field_intensity[m, n], intensity
-    #                 )
-    #             else:
-    #                 field_intensity[m, n] = intensity
-    #         except:
-    #             print(field_intensity.shape, m, n)
-    #             break
-
-    #     not_on_fire = np.ones((world_size, world_size))
-    #     # not_on_fire[field_intensity > 0] = 0
-    #     # not_on_fire = np.argwhere(not_on_fire == 1)
-    #     for i in range(world_size):
-    #         for j in range(world_size):
-    #             if field_intensity[i, j] > 0:
-    #                 not_on_fire[i, j] = 0
-
-    #     on_fire_indices = np.nonzero(field_intensity)  # Get indices of points that are on fire
-
-    #     for i in range(not_on_fire.shape[0]):
-    #         for j in range(not_on_fire.shape[1]):
-    #             if not_on_fire[i, j] == 1:  # If the point is not on fire
-    #                 neighboring_points = []
-    #                 for k in range(len(on_fire_indices[0])):
-    #                     x_, y_ = on_fire_indices[0][k], on_fire_indices[1][k]
-    #                     if np.linalg.norm(np.array([i, j]) - np.array([x_, y_])) <= 1:
-    #                         neighboring_points.append(field_intensity[x_, y_])
-
-    #                 if len(neighboring_points) != 0:
-    #                     field_intensity[i, j] = np.mean(np.array(neighboring_points))
-
-    #     return field_intensity
-
-    # def calc_fire_intensity_in_field(self, fire_map):
-    #     """
-    #     input: fire_map, shape = (n, 3), n: number of fire spots, 3: (x, y, intensity)
-    #     output: field_intensity - fire_intensity at each location in field, shape: (world_size, world_size)
-    #     """
-    #     world_size = self.world_size
-    #     field_intensity = np.zeros((world_size, world_size))
-        
-    #     for x, y, intensity in fire_map:
-    #         m = min(int(x), world_size - 1)
-    #         n = min(int(y), world_size - 1)
-    #         field_intensity[m, n] = max(field_intensity[m, n], intensity)
-
-    #     # on_fire = np.where(field_intensity > 0)
-    #     not_on_fire = np.where(field_intensity == 0)
-
-    #     for x, y in zip(*not_on_fire):
-    #         neighboring_intensity = field_intensity[max(0, x - 1):min(world_size, x + 1),
-    #                                                 max(0, y - 1):min(world_size, y + 1)]
-    #         neighboring_intensity = neighboring_intensity.flatten()
-    #         neighboring_intensity = neighboring_intensity[neighboring_intensity > 0]
-    #         if neighboring_intensity.size > 0:
-    #             field_intensity[x, y] = np.mean(neighboring_intensity)
-    #     else:
-    #         field_intensity[x, y] = 0
-
-    #     return field_intensity
 
     def return_fire_at_location(self, loc):
         """
@@ -778,7 +711,7 @@ class FireCommanderExtreme(object):
         # loc_[1] = int(loc_[1] * self.world_size)
         loc_ = self.convert_coords2world(loc)
         # print(">>> Getting the fire intensity at location: ", loc_)
-        return self.interp_fire_intensity[loc_[0], loc_[1]]
+        return self.interp_fire_intensity[loc_[0], loc_[1]]/self.interp_fire_intensity.max()
 
     
     # close pygame (only for online visualization option)

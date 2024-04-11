@@ -3,7 +3,8 @@ import numpy as np
 import ray
 import os
 from attention_net import AttentionNet
-from worker import Worker
+# from worker import Worker
+from worker_st import Worker
 from parameters import *
 
 

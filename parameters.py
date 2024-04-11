@@ -1,4 +1,4 @@
-BATCH_SIZE = 16 #8
+BATCH_SIZE = 32 #8
 INPUT_DIM = 4
 EMBEDDING_DIM = 128
 SAMPLE_SIZE = 200
@@ -7,11 +7,11 @@ BUDGET_RANGE = (8,10)
 SAMPLE_LENGTH = 0.2
 
 ADAPTIVE_AREA = True
-ADAPTIVE_TH = 100
+ADAPTIVE_TH = 0.2
 
 USE_GPU = False
 USE_GPU_GLOBAL = True
-CUDA_DEVICE = [0, 1, 2, 3]
+CUDA_DEVICE = [1, 2, 3]
 NUM_META_AGENT = 6 #32 #6
 LR = 1e-4
 GAMMA = 1
@@ -21,7 +21,7 @@ FOLDER_NAME = 'ipp'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
-LOAD_MODEL = False
+LOAD_MODEL = True
 SAVE_IMG_GAP = 1000
 
 FIXED_ENV= 2 

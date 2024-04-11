@@ -33,13 +33,19 @@ class Env:
         self.curr_t = 0.0
         self.n_targets = 1
 
+        # # generate Fire environment
+        self.fire = Fire(world_size=30, online_vis=True, start=self.start[0])
+        self.fire.env_init()
+        
         # self.graph_ctrl = GraphController(self.graph_size, self.start, self.k_size, self.obstacles)
         self.graph_ctrl = PRMController(self.graph_size, self.obstacles, self.start, self.destination, self.k_size)
         self.node_coords, self.graph = self.graph_ctrl.runPRM(seed=self.seed)
+        
         # underlying distribution
         self.underlying_distrib = None
         self.ground_truth = None
         self.high_info_idx = None
+        
         # GP
         self.gp_wrapper = None
         self.node_feature = None
@@ -47,6 +53,7 @@ class Env:
         self.JS, self.JS_init, self.JS_list, self.KL, self.KL_init, self.KL_list = None, None, None, None, None, None
         self.cov_trace, self.cov_trace_init = None, None
         self.unc, self.unc_list, self.unc_init, self.unc_sum, self.unc_sum_list = None, None, None, None, None
+        
         # start point
         self.current_node_index = 0
         self.dist_residual = 0
@@ -54,11 +61,6 @@ class Env:
         # self.random_speed_factor = None
         # self.d_to_target = None
         self.route = []
-        self.frame_files = []
-
-        # # # generate Fire environment
-        # self.fire = Fire(online_vis=True, start=self.start[0])
-        # self.fire.env_init()
 
         self.save_image = save_image
         self.frame_files = []
