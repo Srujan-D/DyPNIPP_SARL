@@ -280,11 +280,12 @@ class Worker:
                 perf_metrics['stdjsd'] = np.mean(jsd_stddev_list)
                 perf_metrics['f1'] = self.env.gp_wrapper.eval_avg_F1(self.env.ground_truth, self.env.curr_t)
                 perf_metrics['mi'] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
-                perf_metrics['covtr'] = self.env.cov_trace
+                # perf_metrics['covtr'] = self.env.cov_trace
                 perf_metrics['js'] = self.env.JS
                 perf_metrics['rmse'] = self.env.RMSE
                 perf_metrics['scalex'] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
                 perf_metrics['scalet'] = 3  # scale_t
+                perf_metrics["cov_trace"] = self.env.cov_trace
                 break
         if not done:
             episode_buffer[6] = episode_buffer[4][1:]
@@ -309,7 +310,7 @@ class Worker:
             perf_metrics['stdjsd'] = np.mean(jsd_stddev_list)
             perf_metrics['f1'] = self.env.gp_wrapper.eval_avg_F1(self.env.ground_truth, self.env.curr_t)
             perf_metrics['mi'] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
-            perf_metrics['covtr'] = self.env.cov_trace
+            perf_metrics['cov_trace'] = self.env.cov_trace
             perf_metrics['js'] = self.env.JS
             perf_metrics['rmse'] = self.env.RMSE
             # perf_metrics["RMSE"] = self.env.gp_ipp.evaluate_RMSE(self.env.ground_truth)
@@ -322,6 +323,8 @@ class Worker:
             # )
             # perf_metrics["cov_trace"] = self.env.cov_trace
             perf_metrics["success_rate"] = False
+            perf_metrics['scalex'] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+            perf_metrics['scalet'] = 3  # scale_t
 
         print("route is ", route)
         reward = copy.deepcopy(episode_buffer[5])

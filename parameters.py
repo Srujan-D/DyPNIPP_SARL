@@ -11,7 +11,7 @@ ADAPTIVE_TH = 0.2
 
 USE_GPU = False
 USE_GPU_GLOBAL = True
-CUDA_DEVICE = [1, 2, 3]
+CUDA_DEVICE = [2, 3, 4]
 NUM_META_AGENT = 6 #32 #6
 LR = 1e-4
 GAMMA = 1
@@ -21,7 +21,7 @@ FOLDER_NAME = 'ipp'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
-LOAD_MODEL = True
+LOAD_MODEL = False
 SAVE_IMG_GAP = 1000
 
 FIXED_ENV= 2 

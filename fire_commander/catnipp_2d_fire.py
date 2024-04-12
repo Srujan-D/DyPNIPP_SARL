@@ -177,10 +177,10 @@ class FireCommanderExtreme(object):
         self.FOV_list = []
         
         # self.agent_state_update(action, p_vel=p_vel, a_vel=a_vel, vert_vel=vert_vel, min_alt=min_alt, max_alt=max_alt)  # update the agents' states
-        # time1 = time.time()
+        time1 = time.time()
         self.fire_propagation()          # propagate the fire
-        # time2 = time.time()
-        # print(">>> Fire Propagation Time: {:.4f}".format(time2 - time1))
+        time2 = time.time()
+        print(">>> Fire Propagation Time: {:.4f}".format(time2 - time1))
         # updating the Perception agents' contribution
         # time1 = time.time()
         for i in range(self.perception_agent_num):
@@ -204,11 +204,8 @@ class FireCommanderExtreme(object):
                 self.pruned_contribution[i - self.perception_agent_num] += len(self.pruned_List) - pruned_num_prev
             else:
                 continue
-        # time1 = time.time()
         # updating the full state matrix
         state = self.state_gen()
-        # time2 = time.time()
-        # print(">>> State Generation Time: {:.4f}".format(time2 - time1))
         '''
         # update the frame stack in the FIFO policy - not used currently
         if self.stack_num <= len(self.frame):
@@ -653,53 +650,79 @@ class FireCommanderExtreme(object):
                 self.ign_points_all = self.new_fire_front
 
         # print(">>> Max fire intensity: ", np.max(self.fire_map[:, 2]))
-        # time1 = time.time()
+        time1 = time.time()
         self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(self.fire_map, self.world_size)
+        time2 = time.time()
+        print(">>> Interpolation Time: {:.4f}".format(time2 - time1))
         self.interp_fire_intensity = gaussian_filter(self.interp_fire_intensity, sigma=1.5)
-        # time2 = time.time()
-        # print(">>> Interpolation Time: {:.4f}".format(time2 - time1))
 
+    # @staticmethod
+    # @jit(nopython=True, parallel=True, fastmath=True)
+    # def calc_fire_intensity_in_field(fire_map, world_size=100):
+    #     field_intensity = np.zeros((world_size, world_size))
+
+    #     for i in range(fire_map.shape[0]):
+    #         x, y, intensity = fire_map[i]
+    #         m = min(int(x), field_intensity.shape[0] - 1)
+    #         n = min(int(y), field_intensity.shape[1] - 1)
+
+    #         if field_intensity[m, n] > 0:
+    #             field_intensity[m, n] = max(field_intensity[m, n], intensity)
+    #         else:
+    #             field_intensity[m, n] = intensity
+
+    #     not_on_fire = np.ones((world_size, world_size))
+
+    #     for i in range(world_size):
+    #         for j in range(world_size):
+    #             if field_intensity[i, j] > 0:
+    #                 not_on_fire[i, j] = 0
+
+    #     on_fire_indices = np.nonzero(field_intensity)  # Get indices of points that are on fire
+
+    #     for i in range(not_on_fire.shape[0]):
+    #         for j in range(not_on_fire.shape[1]):
+    #             if not_on_fire[i, j] == 1:  # If the point is not on fire
+    #                 neighboring_points = []
+    #                 for k in range(len(on_fire_indices[0])):
+    #                     x_, y_ = on_fire_indices[0][k], on_fire_indices[1][k]
+    #                     distance_squared = (x_ - i)**2 + (y_ - j)**2
+    #                     if distance_squared <= 2:
+    #                         neighboring_points.append(field_intensity[x_, y_])
+
+    #                 if len(neighboring_points) != 0:
+    #                     field_intensity[i, j] = np.mean(np.array(neighboring_points))
+
+    #     return field_intensity
+        
     @staticmethod
     @jit(nopython=True, parallel=True, fastmath=True)
     def calc_fire_intensity_in_field(fire_map, world_size=100):
         field_intensity = np.zeros((world_size, world_size))
 
-        for i in range(fire_map.shape[0]):
-            x, y, intensity = fire_map[i]
+        for x, y, intensity in fire_map:
             m = min(int(x), field_intensity.shape[0] - 1)
             n = min(int(y), field_intensity.shape[1] - 1)
 
-            if field_intensity[m, n] > 0:
-                field_intensity[m, n] = max(field_intensity[m, n], intensity)
-            else:
+            if field_intensity[m, n] == 0:
                 field_intensity[m, n] = intensity
 
-        not_on_fire = np.ones((world_size, world_size))
+        on_fire_indices = np.nonzero(field_intensity)
 
         for i in range(world_size):
             for j in range(world_size):
-                if field_intensity[i, j] > 0:
-                    not_on_fire[i, j] = 0
-
-        on_fire_indices = np.nonzero(field_intensity)  # Get indices of points that are on fire
-
-        for i in range(not_on_fire.shape[0]):
-            for j in range(not_on_fire.shape[1]):
-                if not_on_fire[i, j] == 1:  # If the point is not on fire
+                if field_intensity[i, j] == 0:
                     neighboring_points = []
-                    for k in range(len(on_fire_indices[0])):
-                        x_, y_ = on_fire_indices[0][k], on_fire_indices[1][k]
-                        distance_squared = (x_ - i)**2 + (y_ - j)**2
+                    for x_, y_ in zip(on_fire_indices[0], on_fire_indices[1]):
+                        distance_squared = (x_ - i) ** 2 + (y_ - j) ** 2
                         if distance_squared <= 2:
                             neighboring_points.append(field_intensity[x_, y_])
 
-                    if len(neighboring_points) != 0:
+                    if neighboring_points:
                         field_intensity[i, j] = np.mean(np.array(neighboring_points))
-        
-        # # apply gaussian filter to smooth the fire intensity
-        # field_intensity = gaussian_filter(field_intensity, sigma=1.5)
 
         return field_intensity
+
 
     def return_fire_at_location(self, loc):
         """

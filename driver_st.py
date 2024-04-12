@@ -175,7 +175,7 @@ def main():
         "avgkld",
         "stdunc",
         "stdjsd",
-        "covtr",
+        "cov_trace",
         "f1",
         "mi",
         "js",
@@ -206,7 +206,7 @@ def main():
                 for i in range(13):
                     experience_buffer[i] += jobResults[i]
                 for n in metric_name:
-                    print("================metrics consist of:", metrics.keys())
+                    # print("================metrics consist of:", metrics.keys())
                     perf_metrics[n].append(metrics[n])
 
             if (

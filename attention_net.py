@@ -308,6 +308,7 @@ class AttentionNet(nn.Module):
         current_node_feature = self.current_embedding(current_node_feature)
         # print(current_node_feature)
         if mask is not None:
+            print('mask', mask)
             current_mask = torch.gather(mask, 1, current_index.repeat(1,1,k_size)).to(embedding_feature.device)
             # print(current_mask)
         else:
@@ -317,9 +318,12 @@ class AttentionNet(nn.Module):
         #print(connected_nodes_budget)
         current_mask = torch.where(connected_nodes_budget.permute(0,2,1)>0, current_mask, one)
         current_mask[:,:,0] = 1 # don't stay at current position
-        assert 0 in current_mask
-        #print(current_mask)
-        
+        try:
+            assert 0 in current_mask
+        except:
+            print('current mask', current_mask)
+            assert 0 in current_mask
+                    
         # connected_nodes_feature = self.encoder(connected_nodes_feature, current_mask)
         current_feature_prime = self.decoder(current_node_feature, connected_nodes_feature, current_mask)
         logp_list = self.pointer(current_feature_prime, connected_nodes_feature, current_mask)

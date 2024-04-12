@@ -308,12 +308,12 @@ class Env:
                 metrics["uncall"] += [unc_list]
                 metrics["uncstd"] += [np.std(unc_list)]
 
-        time1 = time.time()
+        # time1 = time.time()
         # self.node_info, self.node_std = self.gp_ipp.update_node()
         if self.gp_wrapper.GPs[0].observed_points:
             self.gp_wrapper.update_gps()
-        time2 = time.time()
-        print(f">>> Time to update GPs: {time2 - time1:.4f}")
+        # time2 = time.time()
+        # print(f">>> Time to update GPs: {time2 - time1:.4f}")
 
         self.dist_residual = (
             self.dist_residual + remain_length if no_sample else remain_length
@@ -321,10 +321,10 @@ class Env:
         actual_t = self.curr_t + self.dist_residual
         actual_budget = self.budget - self.dist_residual
 
-        time1 = time.time()
+        # time1 = time.time()
         self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
-        time2 = time.time()
-        print(f">>> Time to update node feature: {time2 - time1:.4f}")
+        # time2 = time.time()
+        # print(f">>> Time to update node feature: {time2 - time1:.4f}")
 
         # time1 = time.time()
         # self.ground_truth = self.get_ground_truth()
