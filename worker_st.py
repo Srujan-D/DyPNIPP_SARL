@@ -394,12 +394,12 @@ class Worker:
         with imageio.get_writer(
             "{}/{}_cov_trace_{:.4g}.gif".format(path, n, self.env.cov_trace),
             mode="I",
-            duration=1.5,
+            duration=2.5,
         ) as writer:
             for frame in self.env.frame_files:
                 image = imageio.imread(frame)
                 writer.append_data(image)
-        print("gif complete\n")
+        print("++++++++++++++++++++++++++++++++++++++++ gif complete\n")
 
         # Remove files
         for filename in self.env.frame_files[:-1]:

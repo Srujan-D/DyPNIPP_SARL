@@ -308,9 +308,9 @@ class AttentionNet(nn.Module):
         current_node_feature = self.current_embedding(current_node_feature)
         # print(current_node_feature)
         if mask is not None:
-            print('mask', mask)
+            # print('mask', mask.size())
             current_mask = torch.gather(mask, 1, current_index.repeat(1,1,k_size)).to(embedding_feature.device)
-            # print(current_mask)
+            # print('current mask', current_mask)
         else:
             current_mask = None
             current_mask = torch.zeros((batch_size,1,k_size),dtype=torch.int64).to(embedding_feature.device)
@@ -321,7 +321,7 @@ class AttentionNet(nn.Module):
         try:
             assert 0 in current_mask
         except:
-            print('current mask', current_mask)
+            print('-----------------------------------------------------------current mask', current_mask)
             assert 0 in current_mask
                     
         # connected_nodes_feature = self.encoder(connected_nodes_feature, current_mask)

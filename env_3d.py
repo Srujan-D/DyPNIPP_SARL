@@ -107,7 +107,7 @@ class Env:
         self.MI0 = None
 
         # start point
-        self.current_node_index = 1  # 0 used in STAMP
+        self.current_node_index = 0 #1  # 0 used in STAMP
         self.sample = self.start.copy()
         self.dist_residual = 0
         self.route = []
@@ -176,7 +176,7 @@ class Env:
         self.budget = self.budget_init
 
         # start point
-        self.current_node_index = 1
+        self.current_node_index = 0 #1
         self.dist_residual = 0
         self.sample = self.start.copy()
         self.random_speed_factor = np.random.rand()
@@ -257,7 +257,7 @@ class Env:
             self.underlying_distribution.single_agent_state_update(
                 self.sample.reshape(-1, 2)[0]
             )
-            time1 = time.time()
+            # time1 = time.time()
             (
                 fire_state,
                 fire_reward,
@@ -266,8 +266,8 @@ class Env:
                 fire_action_complete,
                 interp_fire_intensity,
             ) = self.fire.env_step(r_func="RF4")
-            time2 = time.time()
-            print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
+            # time2 = time.time()
+            # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
             reward += fire_reward
             # self.set_ground_truth(fire_map=interp_fire_intensity)
             # time1 = time.time()
