@@ -22,22 +22,39 @@ from fire_commander.WildFire_Model import WildFire
 from fire_commander.FireCommander_Cmplx2_Utilities import EnvUtilities
 from scipy.interpolate import griddata
 import time
+
 Agent_Util = EnvUtilities()
 
 from scipy.ndimage import gaussian_filter
 
 from numba import jit
 
+
 # Full FireCommander Environment with Battery and Tanker Capacity Limitations
 class FireCommanderExtreme(object):
-    def __init__(self, world_size=None, duration=None, fireAreas_Num=None, P_agent_num=None, A_agent_num=None, online_vis=False, start=None):
+    def __init__(
+        self,
+        world_size=None,
+        duration=None,
+        fireAreas_Num=None,
+        P_agent_num=None,
+        A_agent_num=None,
+        online_vis=False,
+        start=None,
+    ):
 
         # pars parameters
-        self.world_size = 30 if world_size is None else world_size            # world size
-        self.duration = 200 if duration is None else duration                  # numbr of steps per game
-        self.fireAreas_Num = 2 if fireAreas_Num is None else fireAreas_Num     # number of fire areas
-        self.perception_agent_num = 1 if P_agent_num is None else P_agent_num  # number of perception agents
-        self.action_agent_num = 0 if A_agent_num is None else A_agent_num      # number of action agents
+        self.world_size = 30 if world_size is None else world_size  # world size
+        self.duration = 200 if duration is None else duration  # numbr of steps per game
+        self.fireAreas_Num = (
+            2 if fireAreas_Num is None else fireAreas_Num
+        )  # number of fire areas
+        self.perception_agent_num = (
+            1 if P_agent_num is None else P_agent_num
+        )  # number of perception agents
+        self.action_agent_num = (
+            0 if A_agent_num is None else A_agent_num
+        )  # number of action agents
 
         # fire model parameters
         areas_x = np.random.randint(5, self.world_size - 5, self.fireAreas_Num)
@@ -53,23 +70,30 @@ class FireCommanderExtreme(object):
 
         # agent starting position
         print(start)
-        self.start = [int((start[0]+1)*self.world_size/2), int((start[1]+1)*self.world_size/2)]
+        self.start = [
+            int((start[0] + 1) * self.world_size / 2),
+            int((start[1] + 1) * self.world_size / 2),
+        ]
 
         for i in range(self.fireAreas_Num):
             area_centers.append([areas_x[i], areas_y[i]])
             num_firespots.append(np.random.randint(low=5, high=15, size=1)[0])
             area_wind_directions.append(random.choice([0, 45, 90, 135, 180]))
-        self.fire_info = [area_centers,            # [[area1_center_x, area1_center_y], [area2_center_x, area2_center_y], ...],
-                          [num_firespots,          # [[num_firespots1, num_firespots2, ...],
-                           area_delays,            # [area1_start_delay, area2_start_delay, ...],
-                           area_fuel_coeffs,       # [area1_fuel_coefficient, area2_coefficient, ...],
-                           area_wind_speed,        # [area1_wind_speed, area2_wind_speed, ...],
-                           area_wind_directions,   # [area1_wind_direction, area2_wind_direction, ...],
-                           1.25,                   # temporal penalty coefficient,
-                           0.1,                    # fire propagation weight,
-                           90,                     # Action Pruning Confidence Level (In percentage),
-                           80,                     # Hybrid Pruning Confidence Level (In percentage),
-                           1]]                     # mode]
+        self.fire_info = [
+            area_centers,  # [[area1_center_x, area1_center_y], [area2_center_x, area2_center_y], ...],
+            [
+                num_firespots,  # [[num_firespots1, num_firespots2, ...],
+                area_delays,  # [area1_start_delay, area2_start_delay, ...],
+                area_fuel_coeffs,  # [area1_fuel_coefficient, area2_coefficient, ...],
+                area_wind_speed,  # [area1_wind_speed, area2_wind_speed, ...],
+                area_wind_directions,  # [area1_wind_direction, area2_wind_direction, ...],
+                1.25,  # temporal penalty coefficient,
+                0.1,  # fire propagation weight,
+                90,  # Action Pruning Confidence Level (In percentage),
+                80,  # Hybrid Pruning Confidence Level (In percentage),
+                1,
+            ],
+        ]  # mode]
 
         # the number of stacked frames for training
         self.stack_num = 4
@@ -85,12 +109,14 @@ class FireCommanderExtreme(object):
     def convert_coords2world(self, pose):
         pose_ = pose.copy()
         # return [int((pose_[0]+1)*self.world_size/2), int((pose_[1]+1)*self.world_size/2)]
-        return [int(pose_[0]*self.world_size), int(pose_[1]*self.world_size)]
-    
+        return [int(pose_[0] * self.world_size), int(pose_[1] * self.world_size)]
+
     # initialize the environment
     def env_init(self, comm_range=30, init_alt=10):
         # state matrix: 0 -> not_on_fire, 1 -> sensed_on_fire, 2 -> pruned, 3 -> P_agent_loc, 4 -> P_agent_scope, 5 -> A_agent_loc, 6 -> A_agent_scope
-        self.state = np.zeros((self.world_size, self.world_size), dtype=float)  # initialize the full state matrix
+        self.state = np.zeros(
+            (self.world_size, self.world_size), dtype=float
+        )  # initialize the full state matrix
 
         # initialize the agents' (e.g., robots') states. Format:: [X, Y, Z, type], where type=0 is Perception and type=1 is Action
         # agaents initialized at the top-right corner (-/), for top-left (//), for bottom-right (--), for bottom-left (/-)
@@ -101,11 +127,15 @@ class FireCommanderExtreme(object):
         self.agent_state = []
         for i in range(self.perception_agent_num):
             # self.agent_state.append([int(self.world_size-10), int(self.world_size/10), init_alt, 0])  # Perception Agent
-            self.agent_state.append([int(self.start[0]), int(self.start[1]), init_alt, 0])
-        
+            self.agent_state.append(
+                [int(self.start[0]), int(self.start[1]), init_alt, 0]
+            )
+
         for i in range(self.action_agent_num):
-            self.agent_state.append([int(self.world_size-10), int(self.world_size/10), init_alt, 1])  # Action Agent
-        
+            self.agent_state.append(
+                [int(self.world_size - 10), int(self.world_size / 10), init_alt, 1]
+            )  # Action Agent
+
         self.comm_hop = comm_range  # number of hops for discrete communication range
         self.agent_pose_dim = 2  # 2D v/s 3D coordinates
 
@@ -132,14 +162,22 @@ class FireCommanderExtreme(object):
                 if i != j:
                     pose1 = self.agent_state[i]
                     pose2 = self.agent_state[j]
-                    if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
+                    if Agent_Util.adjacent_agents(
+                        pose1[0 : self.agent_pose_dim - 1],
+                        pose2[0 : self.agent_pose_dim - 1],
+                        hop_num=self.comm_hop,
+                    ):
                         self.adjacent_agents_PnP.append([i, j])
         # Perception-Action adjacency
         for i in range(self.perception_agent_num):
             for j in range(self.action_agent_num):
                 pose1 = self.agent_state[i]
                 pose2 = self.agent_state[self.perception_agent_num + j]
-                if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
+                if Agent_Util.adjacent_agents(
+                    pose1[0 : self.agent_pose_dim - 1],
+                    pose2[0 : self.agent_pose_dim - 1],
+                    hop_num=self.comm_hop,
+                ):
                     self.adjacent_agents_PnA.append([i, self.perception_agent_num + j])
         # Action-Action adjacency
         for i in range(self.action_agent_num):
@@ -147,8 +185,17 @@ class FireCommanderExtreme(object):
                 if i != j:
                     pose1 = self.agent_state[self.perception_agent_num + i]
                     pose2 = self.agent_state[self.perception_agent_num + j]
-                    if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
-                        self.adjacent_agents_AnA.append([self.perception_agent_num + i, self.perception_agent_num + j])
+                    if Agent_Util.adjacent_agents(
+                        pose1[0 : self.agent_pose_dim - 1],
+                        pose2[0 : self.agent_pose_dim - 1],
+                        hop_num=self.comm_hop,
+                    ):
+                        self.adjacent_agents_AnA.append(
+                            [
+                                self.perception_agent_num + i,
+                                self.perception_agent_num + j,
+                            ]
+                        )
 
         # task complete info
         self.perception_complete = 0
@@ -173,46 +220,77 @@ class FireCommanderExtreme(object):
         self.FOV_list = []
 
     # proceed the environment one step into the future
-    def env_step(self, action=None, p_vel=5, a_vel=5, vert_vel=2, min_alt=5, max_alt=15, time_passed=1, a_c_threshold=1.5, r_func=None):
+    def env_step(
+        self,
+        action=None,
+        p_vel=5,
+        a_vel=5,
+        vert_vel=2,
+        min_alt=5,
+        max_alt=15,
+        time_passed=1,
+        a_c_threshold=1.5,
+        r_func=None,
+    ):
         self.FOV_list = []
-        
+
         # self.agent_state_update(action, p_vel=p_vel, a_vel=a_vel, vert_vel=vert_vel, min_alt=min_alt, max_alt=max_alt)  # update the agents' states
-        time1 = time.time()
-        self.fire_propagation()          # propagate the fire
-        time2 = time.time()
-        print(">>> Fire Propagation Time: {:.4f}".format(time2 - time1))
+        # time1 = time.time()
+        self.fire_propagation()  # propagate the fire
+        # time2 = time.time()
+        # print(">>> Fire Propagation Time: {:.4f}".format(time2 - time1))
         # updating the Perception agents' contribution
         # time1 = time.time()
         for i in range(self.perception_agent_num):
             sensed_num_prev = len(self.sensed_List)
             # Sensing
-            self.sensed_List, FOV = Agent_Util.fire_Sensing(self.onFire_List, self.agent_state[i], self.sensed_List, self.world_size)
+            self.sensed_List, FOV = Agent_Util.fire_Sensing(
+                self.onFire_List, self.agent_state[i], self.sensed_List, self.world_size
+            )
             self.FOV_list.append(FOV)
             # compute the per-agent contribution (variation of the sensing list size)
             self.sensed_contribution[i] += len(self.sensed_List) - sensed_num_prev
         # time2 = time.time()
         # print(">>> Sensing Time: {:.4f}".format(time2 - time1))
         # updating the Action agents' contribution
-        for i in range(self.perception_agent_num, self.perception_agent_num + self.action_agent_num):
+        for i in range(
+            self.perception_agent_num, self.perception_agent_num + self.action_agent_num
+        ):
             if action[i] == 4:
                 pruned_num_prev = len(self.pruned_List)
                 # Pruning
-                self.onFire_List, self.sensed_List, self.pruned_List, self.new_fire_front, self.target_onFire_list =\
-                    Agent_Util.fire_Pruning(self.agent_state[i], self.onFire_List, self.sensed_List, self.pruned_List, self.new_fire_front,
-                                            self.target_onFire_list, self.target_info, self.world_size, 0.8)
+                (
+                    self.onFire_List,
+                    self.sensed_List,
+                    self.pruned_List,
+                    self.new_fire_front,
+                    self.target_onFire_list,
+                ) = Agent_Util.fire_Pruning(
+                    self.agent_state[i],
+                    self.onFire_List,
+                    self.sensed_List,
+                    self.pruned_List,
+                    self.new_fire_front,
+                    self.target_onFire_list,
+                    self.target_info,
+                    self.world_size,
+                    0.8,
+                )
                 # compute the per-agent contribution (variation of the pruned list size)
-                self.pruned_contribution[i - self.perception_agent_num] += len(self.pruned_List) - pruned_num_prev
+                self.pruned_contribution[i - self.perception_agent_num] += (
+                    len(self.pruned_List) - pruned_num_prev
+                )
             else:
                 continue
         # updating the full state matrix
         state = self.state_gen()
-        '''
+        """
         # update the frame stack in the FIFO policy - not used currently
         if self.stack_num <= len(self.frame):
             self.frame = self.frame[1:] + [state]
         else:
             self.frame.append(state)
-        '''
+        """
 
         # TODO: DISCRETE ADAJACENCY CHECK ############################################################################################################
         # determining the neighboring agents (works with both 2D and 3D positions)
@@ -225,14 +303,22 @@ class FireCommanderExtreme(object):
                 if i != j:
                     pose1 = self.agent_state[i]
                     pose2 = self.agent_state[j]
-                    if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
+                    if Agent_Util.adjacent_agents(
+                        pose1[0 : self.agent_pose_dim - 1],
+                        pose2[0 : self.agent_pose_dim - 1],
+                        hop_num=self.comm_hop,
+                    ):
                         self.adjacent_agents_PnP.append([i, j])
         # Perception-Action adjacency
         for i in range(self.perception_agent_num):
             for j in range(self.action_agent_num):
                 pose1 = self.agent_state[i]
                 pose2 = self.agent_state[self.perception_agent_num + j]
-                if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
+                if Agent_Util.adjacent_agents(
+                    pose1[0 : self.agent_pose_dim - 1],
+                    pose2[0 : self.agent_pose_dim - 1],
+                    hop_num=self.comm_hop,
+                ):
                     self.adjacent_agents_PnA.append([i, self.perception_agent_num + j])
         # Action-Action adjacency
         for i in range(self.action_agent_num):
@@ -240,42 +326,92 @@ class FireCommanderExtreme(object):
                 if i != j:
                     pose1 = self.agent_state[self.perception_agent_num + i]
                     pose2 = self.agent_state[self.perception_agent_num + j]
-                    if Agent_Util.adjacent_agents(pose1[0:self.agent_pose_dim-1], pose2[0:self.agent_pose_dim-1], hop_num=self.comm_hop):
-                        self.adjacent_agents_AnA.append([self.perception_agent_num + i, self.perception_agent_num + j])
+                    if Agent_Util.adjacent_agents(
+                        pose1[0 : self.agent_pose_dim - 1],
+                        pose2[0 : self.agent_pose_dim - 1],
+                        hop_num=self.comm_hop,
+                    ):
+                        self.adjacent_agents_AnA.append(
+                            [
+                                self.perception_agent_num + i,
+                                self.perception_agent_num + j,
+                            ]
+                        )
 
         # TODO: REWARD STRUCTURE #####################################################################################################################
-        all_adjacencies = self.adjacent_agents_PnP + self.adjacent_agents_AnA + self.adjacent_agents_PnA
-        if r_func == 'RF1':
-            self.reward = self.get_reward1(len(self.onFire_List), sum(self.sensed_contribution), sum(self.pruned_contribution),
-                                           all_adjacencies, time_passed)
-        elif r_func == 'RF2':
-            self.reward = self.get_reward2(len(self.onFire_List), sum(self.sensed_contribution), sum(self.pruned_contribution),
-                                           all_adjacencies, time_passed)
-        elif r_func == 'RF3':
-            self.reward = self.get_reward3(len(self.onFire_List), sum(self.sensed_contribution), sum(self.pruned_contribution),
-                                           all_adjacencies, time_passed)
-        elif r_func == 'RF4':
-            self.reward = self.get_reward4(len(self.onFire_List), sum(self.sensed_contribution), sum(self.pruned_contribution),
-                                           all_adjacencies, time_passed)
+        all_adjacencies = (
+            self.adjacent_agents_PnP
+            + self.adjacent_agents_AnA
+            + self.adjacent_agents_PnA
+        )
+        if r_func == "RF1":
+            self.reward = self.get_reward1(
+                len(self.onFire_List),
+                sum(self.sensed_contribution),
+                sum(self.pruned_contribution),
+                all_adjacencies,
+                time_passed,
+            )
+        elif r_func == "RF2":
+            self.reward = self.get_reward2(
+                len(self.onFire_List),
+                sum(self.sensed_contribution),
+                sum(self.pruned_contribution),
+                all_adjacencies,
+                time_passed,
+            )
+        elif r_func == "RF3":
+            self.reward = self.get_reward3(
+                len(self.onFire_List),
+                sum(self.sensed_contribution),
+                sum(self.pruned_contribution),
+                all_adjacencies,
+                time_passed,
+            )
+        elif r_func == "RF4":
+            self.reward = self.get_reward4(
+                len(self.onFire_List),
+                sum(self.sensed_contribution),
+                sum(self.pruned_contribution),
+                all_adjacencies,
+                time_passed,
+            )
         elif r_func is None:
-            self.reward = self.get_reward1(len(self.onFire_List), sum(self.sensed_contribution), sum(self.pruned_contribution),
-                                           all_adjacencies, time_passed)
+            self.reward = self.get_reward1(
+                len(self.onFire_List),
+                sum(self.sensed_contribution),
+                sum(self.pruned_contribution),
+                all_adjacencies,
+                time_passed,
+            )
         else:
-            raise ValueError(">>> Oops! The specified Reward Function name doesn't exist. Options: RF1, RF2, RF3")
-
+            raise ValueError(
+                ">>> Oops! The specified Reward Function name doesn't exist. Options: RF1, RF2, RF3"
+            )
 
         # if all the fire fronts have been sensed, exit the environment
         # Perception performance: (sensed + pruned) / (active + pruned)
-        self.perception_complete = (len(self.sensed_List) + len(self.pruned_List)) / (len(self.onFire_List) + len(self.pruned_List))
+        self.perception_complete = (len(self.sensed_List) + len(self.pruned_List)) / (
+            len(self.onFire_List) + len(self.pruned_List)
+        )
         # Action performance:  pruned / (active + pruned)
-        self.action_complete = len(self.pruned_List) / (len(self.onFire_List) + len(self.pruned_List))
+        self.action_complete = len(self.pruned_List) / (
+            len(self.onFire_List) + len(self.pruned_List)
+        )
         # when more than 95% of firespots have been pruned, the agent wins the game
         # lower the bar to 80%
         if self.action_complete >= a_c_threshold:
             self.done = True
             self.reward += 1000.0
 
-        return state, self.reward, self.done, self.perception_complete, self.action_complete, self.interp_fire_intensity/self.interp_fire_intensity.max()
+        return (
+            state,
+            self.reward,
+            self.done,
+            self.perception_complete,
+            self.action_complete,
+            self.interp_fire_intensity / self.interp_fire_intensity.max(),
+        )
 
     def single_agent_state_update(self, loc):
         # print(">>> Updating the agent's state to: ", loc)
@@ -287,7 +423,9 @@ class FireCommanderExtreme(object):
         self.agent_state[0][1] = loc_[1]
 
     # agents' state transisitions: updating individual agents' states [X, Y, Z] according to the taken action
-    def agent_state_update(self, action_type, p_vel, a_vel, vert_vel=2, min_alt=5, max_alt=15):
+    def agent_state_update(
+        self, action_type, p_vel, a_vel, vert_vel=2, min_alt=5, max_alt=15
+    ):
         # Update P agents
         for i in range(self.perception_agent_num):
             # state transisitions
@@ -296,38 +434,54 @@ class FireCommanderExtreme(object):
                 self.agent_state[i][0] = max(self.agent_state[i][0] - p_vel, 0)
             # Action: Backward
             elif action_type[i] == 1:
-                self.agent_state[i][0] = min(self.agent_state[i][0] + p_vel, self.world_size - 1)
+                self.agent_state[i][0] = min(
+                    self.agent_state[i][0] + p_vel, self.world_size - 1
+                )
             # Action: Left
             elif action_type[i] == 2:
                 self.agent_state[i][1] = max(self.agent_state[i][1] - p_vel, 0)
             # Action: Right
             elif action_type[i] == 3:
-                self.agent_state[i][1] = min(self.agent_state[i][1] + p_vel, self.world_size - 1)
+                self.agent_state[i][1] = min(
+                    self.agent_state[i][1] + p_vel, self.world_size - 1
+                )
             # Action: Up (altitude):
             elif action_type[i] == 4 and self.agent_state[i][3] == 0:
-                self.agent_state[i][2] = min(self.agent_state[i][2] + vert_vel, max_alt)  # maximum allowed altitude set to 20
+                self.agent_state[i][2] = min(
+                    self.agent_state[i][2] + vert_vel, max_alt
+                )  # maximum allowed altitude set to 20
             # Action: Down (altitude):
             elif action_type[i] == 5 and self.agent_state[i][3] == 0:
-                self.agent_state[i][2] = max(self.agent_state[i][2] - vert_vel, min_alt)  # minimum allowed altitude set to 5
+                self.agent_state[i][2] = max(
+                    self.agent_state[i][2] - vert_vel, min_alt
+                )  # minimum allowed altitude set to 5
 
-        # Update A agents       
-        for i in range(self.perception_agent_num, self.perception_agent_num + self.action_agent_num):
+        # Update A agents
+        for i in range(
+            self.perception_agent_num, self.perception_agent_num + self.action_agent_num
+        ):
             if action_type[i] == 0:
                 self.agent_state[i][0] = max(self.agent_state[i][0] - a_vel, 0)
             # Action: Backward
             elif action_type[i] == 1:
-                self.agent_state[i][0] = min(self.agent_state[i][0] + a_vel, self.world_size - 1)
+                self.agent_state[i][0] = min(
+                    self.agent_state[i][0] + a_vel, self.world_size - 1
+                )
             # Action: Left
             elif action_type[i] == 2:
                 self.agent_state[i][1] = max(self.agent_state[i][1] - a_vel, 0)
             # Action: Right
             elif action_type[i] == 3:
-                self.agent_state[i][1] = min(self.agent_state[i][1] + a_vel, self.world_size - 1)
+                self.agent_state[i][1] = min(
+                    self.agent_state[i][1] + a_vel, self.world_size - 1
+                )
             elif action_type[i] == 4:
                 continue
 
     # get the reward for agents (reward function number 1) - w/o time penalty, w/o firespot penalty, w/ communication reward
-    def get_reward1(self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed):
+    def get_reward1(
+        self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed
+    ):
         # computing performance rewards
         new_reward = 2.0 * num_sensed
         new_reward += 20.0 * num_pruned
@@ -349,8 +503,14 @@ class FireCommanderExtreme(object):
         # computing adjacency rewards for homogeneous communicatiion channel
         uniques_hetero_cm = list(range(0, len(self.agent_state)))
         for pair in all_adjacencies:
-            if 0 <= pair[0] < self.perception_agent_num:  # one way check is OK since heterogeneous communication is symmetric
-                if self.perception_agent_num <= pair[1] < self.perception_agent_num + self.action_agent_num:
+            if (
+                0 <= pair[0] < self.perception_agent_num
+            ):  # one way check is OK since heterogeneous communication is symmetric
+                if (
+                    self.perception_agent_num
+                    <= pair[1]
+                    < self.perception_agent_num + self.action_agent_num
+                ):
                     if pair[0] in uniques_hetero_cm:
                         uniques_hetero_cm.remove(pair[0])
                     if pair[1] in uniques_hetero_cm:
@@ -363,12 +523,14 @@ class FireCommanderExtreme(object):
         return im_reward
 
     # get the reward for agents (reward function number 2) - w/ time penalty, w/o firespots penalty, w/o communication reward
-    def get_reward2(self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed):
-        #new_reward = self.old_reward_without_adjacent
-        #new_reward = -1.0 * time_passed
+    def get_reward2(
+        self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed
+    ):
+        # new_reward = self.old_reward_without_adjacent
+        # new_reward = -1.0 * time_passed
 
-        #im_reward = new_reward - self.old_reward_without_adjacent
-        #self.old_reward_without_adjacent = new_reward
+        # im_reward = new_reward - self.old_reward_without_adjacent
+        # self.old_reward_without_adjacent = new_reward
         if num_firespots > 0:
             im_reward = -1.0
         else:
@@ -377,7 +539,9 @@ class FireCommanderExtreme(object):
         return im_reward
 
     # get the reward for agents (reward function number 2) - w/o time penalty, w/ firespots penalty, w/o communication reward
-    def get_reward3(self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed):
+    def get_reward3(
+        self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed
+    ):
         # computing performance rewards
         # new_reward = 2.0 * num_sensed
         # new_reward += 20.0 * num_pruned
@@ -389,8 +553,10 @@ class FireCommanderExtreme(object):
         im_reward = -0.1 * num_firespots
 
         return im_reward
-    
-    def get_reward4(self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed):
+
+    def get_reward4(
+        self, num_firespots, num_sensed, num_pruned, all_adjacencies, time_passed
+    ):
         # reward just based on num_sensed out of num_firespots
         im_reward = 2.0 * num_sensed
         # normalize the reward
@@ -399,35 +565,65 @@ class FireCommanderExtreme(object):
 
     # generating the state matrix
     def state_gen(self):
-        self.state = np.zeros((self.world_size, self.world_size), dtype=float)  # cleanup the previous states
+        self.state = np.zeros(
+            (self.world_size, self.world_size), dtype=float
+        )  # cleanup the previous states
         for i in range(len(self.agent_state)):
             # Perception Agents
             if self.agent_state[i][3] == 0:
                 # mark the Perception agent scope
-                for i1 in range(max(0, self.agent_state[i][0] - self.agent_state[i][2]),
-                                min(self.agent_state[i][0] + self.agent_state[i][2] + 1, self.world_size)):
-                    for j1 in range(max(0, self.agent_state[i][1] - self.agent_state[i][2]),
-                                    min(self.agent_state[i][1] + self.agent_state[i][2] + 1, self.world_size)):
+                for i1 in range(
+                    max(0, self.agent_state[i][0] - self.agent_state[i][2]),
+                    min(
+                        self.agent_state[i][0] + self.agent_state[i][2] + 1,
+                        self.world_size,
+                    ),
+                ):
+                    for j1 in range(
+                        max(0, self.agent_state[i][1] - self.agent_state[i][2]),
+                        min(
+                            self.agent_state[i][1] + self.agent_state[i][2] + 1,
+                            self.world_size,
+                        ),
+                    ):
                         self.state[i1][j1] = 4  # Perception agent scope index
                 # mark the position of the perception agents
-                self.state[self.agent_state[i][0]][self.agent_state[i][1]] = 3  # Perception agent location index
+                self.state[self.agent_state[i][0]][
+                    self.agent_state[i][1]
+                ] = 3  # Perception agent location index
 
             # Action Agents
             elif self.agent_state[i][3] == 1:
                 # mark the Action agent scope
-                for i1 in range(max(0, self.agent_state[i][0] - self.agent_state[i][2]),
-                                min(self.agent_state[i][0] + self.agent_state[i][2] + 1, self.world_size)):
-                    for j1 in range(max(0, self.agent_state[i][1] - self.agent_state[i][2]),
-                                    min(self.agent_state[i][1] + self.agent_state[i][2] + 1, self.world_size)):
+                for i1 in range(
+                    max(0, self.agent_state[i][0] - self.agent_state[i][2]),
+                    min(
+                        self.agent_state[i][0] + self.agent_state[i][2] + 1,
+                        self.world_size,
+                    ),
+                ):
+                    for j1 in range(
+                        max(0, self.agent_state[i][1] - self.agent_state[i][2]),
+                        min(
+                            self.agent_state[i][1] + self.agent_state[i][2] + 1,
+                            self.world_size,
+                        ),
+                    ):
                         self.state[i1][j1] = 6  # Action agent scope index
                 # mark the position of the action agents
-                self.state[self.agent_state[i][0]][self.agent_state[i][1]] = 5  # Action agent location index
+                self.state[self.agent_state[i][0]][
+                    self.agent_state[i][1]
+                ] = 5  # Action agent location index
         # mark the sensed fire fronts
         for i in range(len(self.sensed_List)):
-            self.state[self.sensed_List[i][0]][self.sensed_List[i][1]] = 1  # sensed firespots index
+            self.state[self.sensed_List[i][0]][
+                self.sensed_List[i][1]
+            ] = 1  # sensed firespots index
         # mark the pruned fire fronts
         for i in range(len(self.pruned_List)):
-            self.state[self.pruned_List[i][0]][self.pruned_List[i][1]] = 2  # pruned firespots index
+            self.state[self.pruned_List[i][0]][
+                self.pruned_List[i][1]
+            ] = 2  # pruned firespots index
 
         return self.state
 
@@ -443,13 +639,13 @@ class FireCommanderExtreme(object):
         """
         if len(self.FOV_list) > 0:
             return self.FOV_list
-        else:            
+        else:
             FOV_list = []
-            
+
             for i in range(self.perception_agent_num):
                 # Perception Agents
                 if self.agent_state[i][3] == 0:
-                    #1. crop image
+                    # 1. crop image
                     x, y, z, alt = self.agent_state[i]
                     # the upper-left corner of the agent searching scope
                     upper_x = max(0, x - z)
@@ -458,18 +654,19 @@ class FireCommanderExtreme(object):
                     lower_x = min(x + z, self.world_size - 1)
                     lower_y = min(y + z, self.world_size - 1)
                     # crop
-                    cropped = self.state[upper_x:lower_x+1, upper_y:lower_y+1].copy()
-                    
-                    #2. change 2-6 to 0
-                    cropped[cropped>=2] = 0
-                    
-                    #3. add to dict
+                    cropped = self.state[
+                        upper_x : lower_x + 1, upper_y : lower_y + 1
+                    ].copy()
+
+                    # 2. change 2-6 to 0
+                    cropped[cropped >= 2] = 0
+
+                    # 3. add to dict
                     FOV_list.append(cropped)
                 else:
-                    print('Idx Error!')
-    
-            return FOV_list
+                    print("Idx Error!")
 
+            return FOV_list
 
     # # online visualization of the game state with PyGame
     # def env_visualize(self):
@@ -525,11 +722,19 @@ class FireCommanderExtreme(object):
         terrain_sizes = [self.world_size, self.world_size]
         hotspot_areas = []
         for i in range(self.fireAreas_Num):
-            hotspot_areas.append([self.fire_info[0][i][0] - 5, self.fire_info[0][i][0] + 5,
-                                  self.fire_info[0][i][1] - 5, self.fire_info[0][i][1] + 5])
+            hotspot_areas.append(
+                [
+                    self.fire_info[0][i][0] - 5,
+                    self.fire_info[0][i][0] + 5,
+                    self.fire_info[0][i][1] - 5,
+                    self.fire_info[0][i][1] + 5,
+                ]
+            )
 
         # checking fire model setting mode and initializing the fire model
-        if self.fire_info[1][9] == 0:  # when using "uniform" fire setting (all fire areas use the same parameters)
+        if (
+            self.fire_info[1][9] == 0
+        ):  # when using "uniform" fire setting (all fire areas use the same parameters)
             # initial number of fire spots (ignition points) per hotspot area
             num_ign_points = self.fire_info[1][0]
             # fuel coefficient for vegetation type of the terrain (higher fuel_coeff:: more circular shape fire)
@@ -537,16 +742,32 @@ class FireCommanderExtreme(object):
             # average mid-flame wind velocity (higher values streches the fire more)
             wind_speed = self.fire_info[1][3]
             # wind azimuth
-            wind_direction = np.pi * 2 * self.fire_info[1][4] / 360  # converting degree to radian
+            wind_direction = (
+                np.pi * 2 * self.fire_info[1][4] / 360
+            )  # converting degree to radian
 
             # Init the wildfire model
-            self.fire_mdl = WildFire(terrain_sizes=terrain_sizes, hotspot_areas=hotspot_areas, num_ign_points=num_ign_points, duration=self.duration,
-                                     time_step=1, radiation_radius=10, weak_fire_threshold=5, flame_height=3, flame_angle=np.pi / 3)
-            self.ign_points_all = self.fire_mdl.hotspot_init()      # initializing hotspots
-            self.fire_map = self.ign_points_all                     # initializing fire-map
-            self.previous_terrain_map = self.ign_points_all.copy()  # initializing the starting terrain map
-            self.geo_phys_info = self.fire_mdl.geo_phys_info_init(max_fuel_coeff=fuel_coeff, avg_wind_speed=wind_speed,
-                                                                  avg_wind_direction=wind_direction)  # initialize geo-physical info
+            self.fire_mdl = WildFire(
+                terrain_sizes=terrain_sizes,
+                hotspot_areas=hotspot_areas,
+                num_ign_points=num_ign_points,
+                duration=self.duration,
+                time_step=1,
+                radiation_radius=10,
+                weak_fire_threshold=5,
+                flame_height=3,
+                flame_angle=np.pi / 3,
+            )
+            self.ign_points_all = self.fire_mdl.hotspot_init()  # initializing hotspots
+            self.fire_map = self.ign_points_all  # initializing fire-map
+            self.previous_terrain_map = (
+                self.ign_points_all.copy()
+            )  # initializing the starting terrain map
+            self.geo_phys_info = self.fire_mdl.geo_phys_info_init(
+                max_fuel_coeff=fuel_coeff,
+                avg_wind_speed=wind_speed,
+                avg_wind_direction=wind_direction,
+            )  # initialize geo-physical info
         else:  # when using "Specific" fire setting (each fire area uses its own parameters)
             self.fire_mdl = []
             self.geo_phys_info = []
@@ -565,16 +786,37 @@ class FireCommanderExtreme(object):
                 # average mid-flame wind velocity (higher values streches the fire more)
                 wind_speed = self.fire_info[1][3][i]
                 # wind azimuth
-                wind_direction = np.pi * 2 * self.fire_info[1][4][i] / 360  # converting degree to radian
+                wind_direction = (
+                    np.pi * 2 * self.fire_info[1][4][i] / 360
+                )  # converting degree to radian
 
                 # init the wildfire model
-                self.fire_mdl.append(WildFire(
-                    terrain_sizes=terrain_sizes, hotspot_areas=[hotspot_areas[i]], num_ign_points=num_ign_points, duration=self.duration, time_step=1,
-                    radiation_radius=10, weak_fire_threshold=5, flame_height=3, flame_angle=np.pi / 3))
-                self.ign_points_all.append(self.fire_mdl[i].hotspot_init())        # initializing hotspots
-                self.previous_terrain_map.append(self.fire_mdl[i].hotspot_init())  # initializing the starting terrain map
-                self.geo_phys_info.append(self.fire_mdl[i].geo_phys_info_init(max_fuel_coeff=fuel_coeff, avg_wind_speed=wind_speed,
-                                                                              avg_wind_direction=wind_direction))  # initialize geo-physical info
+                self.fire_mdl.append(
+                    WildFire(
+                        terrain_sizes=terrain_sizes,
+                        hotspot_areas=[hotspot_areas[i]],
+                        num_ign_points=num_ign_points,
+                        duration=self.duration,
+                        time_step=1,
+                        radiation_radius=10,
+                        weak_fire_threshold=5,
+                        flame_height=3,
+                        flame_angle=np.pi / 3,
+                    )
+                )
+                self.ign_points_all.append(
+                    self.fire_mdl[i].hotspot_init()
+                )  # initializing hotspots
+                self.previous_terrain_map.append(
+                    self.fire_mdl[i].hotspot_init()
+                )  # initializing the starting terrain map
+                self.geo_phys_info.append(
+                    self.fire_mdl[i].geo_phys_info_init(
+                        max_fuel_coeff=fuel_coeff,
+                        avg_wind_speed=wind_speed,
+                        avg_wind_direction=wind_direction,
+                    )
+                )  # initialize geo-physical info
             # initializing the fire-map
             self.fire_map = []
             for i in range(self.fireAreas_Num):
@@ -582,11 +824,21 @@ class FireCommanderExtreme(object):
                     self.fire_map.append(self.ign_points_all[i][j])
             self.fire_map = np.array(self.fire_map)
             self.fire_map_spec = self.ign_points_all
-            self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(self.fire_map, self.world_size)
-            self.interp_fire_intensity = gaussian_filter(self.interp_fire_intensity, sigma=1.5)
+            self.interp_fire_intensity = (
+                FireCommanderExtreme.calc_fire_intensity_in_field(
+                    self.fire_map, self.world_size
+                )
+            )
+            self.interp_fire_intensity = gaussian_filter(
+                self.interp_fire_intensity, sigma=1.5
+            )
         # the lists to store the firespots in different state, coordinates only
-        self.onFire_List = []  # the onFire_List, store the points currently on fire (sensed points included, pruned points excluded)
-        self.sensed_List = []  # the sensed_List, store the points currently on fire and have been sensed by agents
+        self.onFire_List = (
+            []
+        )  # the onFire_List, store the points currently on fire (sensed points included, pruned points excluded)
+        self.sensed_List = (
+            []
+        )  # the sensed_List, store the points currently on fire and have been sensed by agents
         self.pruned_List = []  # the pruned_List, store the pruned fire spots
 
         # keeping track of agents' contributions (e.g. number of sensed/pruned firespot by each Perception/Action agent)
@@ -596,11 +848,17 @@ class FireCommanderExtreme(object):
     # propagate fire one step forward according to the fire model
     def fire_propagation(self):
         # checking fire model setting mode and initializing the fire model
-        if self.fire_info[1][9] == 0:  # when using "uniform" fire setting (all fire areas use the same parameters)
+        if (
+            self.fire_info[1][9] == 0
+        ):  # when using "uniform" fire setting (all fire areas use the same parameters)
             # time1 = time.time()
-            self.new_fire_front, current_geo_phys_info =\
-                self.fire_mdl.fire_propagation(self.world_size, ign_points_all=self.ign_points_all, geo_phys_info=self.geo_phys_info,
-                                               previous_terrain_map=self.previous_terrain_map, pruned_List=self.pruned_List)
+            self.new_fire_front, current_geo_phys_info = self.fire_mdl.fire_propagation(
+                self.world_size,
+                ign_points_all=self.ign_points_all,
+                geo_phys_info=self.geo_phys_info,
+                previous_terrain_map=self.previous_terrain_map,
+                pruned_List=self.pruned_List,
+            )
             # time2 = time.time()
             # print(">>> IF block Propagation Time: {:.4f}".format(time2 - time1))
             updated_terrain_map = self.previous_terrain_map
@@ -608,9 +866,16 @@ class FireCommanderExtreme(object):
             updated_terrain_map = self.previous_terrain_map
             # time1 = time.time()
             for i in range(self.fireAreas_Num):
-                self.new_fire_front_temp[i], self.current_geo_phys_info[i] =\
-                    self.fire_mdl[i].fire_propagation(self.world_size, ign_points_all=self.ign_points_all[i], geo_phys_info=self.geo_phys_info[i],
-                                                      previous_terrain_map=self.previous_terrain_map[i], pruned_List=self.pruned_List)
+                (
+                    self.new_fire_front_temp[i],
+                    self.current_geo_phys_info[i],
+                ) = self.fire_mdl[i].fire_propagation(
+                    self.world_size,
+                    ign_points_all=self.ign_points_all[i],
+                    geo_phys_info=self.geo_phys_info[i],
+                    previous_terrain_map=self.previous_terrain_map[i],
+                    pruned_List=self.pruned_List,
+                )
             # time2 = time.time()
             # print(">>> ELSE block Propagation Time: {:.4f}".format(time2 - time1))
             # update the new firefront list by combining all region-wise firefronts
@@ -623,17 +888,27 @@ class FireCommanderExtreme(object):
         # update the region-wise fire map
         if self.fire_info[1][9] == 1:
             for i in range(self.fireAreas_Num):
-                self.fire_map_spec[i] = np.concatenate([self.fire_map_spec[i], self.new_fire_front_temp[i]], axis=0)
+                self.fire_map_spec[i] = np.concatenate(
+                    [self.fire_map_spec[i], self.new_fire_front_temp[i]], axis=0
+                )
         else:
             self.fire_map_spec = self.fire_map
 
         # process the fire spot information and generate the onFire and targer onfire list
         self.onFire_List, self.target_onFire_list = Agent_Util.fire_Data_Storage(
-            self.new_fire_front, self.world_size, self.onFire_List, self.pruned_List, self.target_onFire_list, self.target_info)
+            self.new_fire_front,
+            self.world_size,
+            self.onFire_List,
+            self.pruned_List,
+            self.target_onFire_list,
+            self.target_info,
+        )
 
         # updating the fire-map data for next step
         if self.new_fire_front.shape[0] > 0:
-            self.fire_map = np.concatenate([self.fire_map, self.new_fire_front], axis=0)  # raw fire map without fire decay
+            self.fire_map = np.concatenate(
+                [self.fire_map, self.new_fire_front], axis=0
+            )  # raw fire map without fire decay
 
         # update the fire propagation information
         if self.fire_info[1][9] == 1:
@@ -641,20 +916,28 @@ class FireCommanderExtreme(object):
             for i in range(self.fireAreas_Num):
                 if self.new_fire_front_temp[i].shape[0] > 0:
                     # fire map with fire decay
-                    self.previous_terrain_map[i] = np.concatenate((updated_terrain_map[i], self.new_fire_front_temp[i]), axis=0)
+                    self.previous_terrain_map[i] = np.concatenate(
+                        (updated_terrain_map[i], self.new_fire_front_temp[i]), axis=0
+                    )
                 ign_points_all_temp.append(self.new_fire_front_temp[i])
             self.ign_points_all = ign_points_all_temp
         else:
             if self.new_fire_front.shape[0] > 0:
-                self.previous_terrain_map = np.concatenate((updated_terrain_map, self.new_fire_front))  # fire map with fire decay
+                self.previous_terrain_map = np.concatenate(
+                    (updated_terrain_map, self.new_fire_front)
+                )  # fire map with fire decay
                 self.ign_points_all = self.new_fire_front
 
         # print(">>> Max fire intensity: ", np.max(self.fire_map[:, 2]))
-        time1 = time.time()
-        self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(self.fire_map, self.world_size)
-        time2 = time.time()
-        print(">>> Interpolation Time: {:.4f}".format(time2 - time1))
-        self.interp_fire_intensity = gaussian_filter(self.interp_fire_intensity, sigma=1.5)
+        # time1 = time.time()
+        self.interp_fire_intensity = FireCommanderExtreme.calc_fire_intensity_in_field(
+            self.fire_map, self.world_size
+        )
+        # time2 = time.time()
+        # print(">>> Interpolation Time: {:.4f}".format(time2 - time1))
+        self.interp_fire_intensity = gaussian_filter(
+            self.interp_fire_intensity, sigma=1.5
+        )
 
     # @staticmethod
     # @jit(nopython=True, parallel=True, fastmath=True)
@@ -694,7 +977,7 @@ class FireCommanderExtreme(object):
     #                     field_intensity[i, j] = np.mean(np.array(neighboring_points))
 
     #     return field_intensity
-        
+
     @staticmethod
     @jit(nopython=True, parallel=True, fastmath=True)
     def calc_fire_intensity_in_field(fire_map, world_size=100):
@@ -723,7 +1006,6 @@ class FireCommanderExtreme(object):
 
         return field_intensity
 
-
     def return_fire_at_location(self, loc):
         """
         Return the fire intensity at the given location
@@ -734,9 +1016,11 @@ class FireCommanderExtreme(object):
         # loc_[1] = int(loc_[1] * self.world_size)
         loc_ = self.convert_coords2world(loc)
         # print(">>> Getting the fire intensity at location: ", loc_)
-        return self.interp_fire_intensity[loc_[0], loc_[1]]/self.interp_fire_intensity.max()
+        return (
+            self.interp_fire_intensity[loc_[0], loc_[1]]
+            / self.interp_fire_intensity.max()
+        )
 
-    
     # close pygame (only for online visualization option)
     @staticmethod
     def env_close():
@@ -748,12 +1032,18 @@ class FireCommanderExtreme(object):
     def env_init_stack(self, planar_vel, vert_vel, min_alt, max_alt):
         self.env_init()
         for _ in range(self.stack_num):
-            action_p = np.random.randint(0, 6, 2)  # Perception agent action generator, using randint now
-            action_a = np.random.randint(0, 4, 2)  # Action agent action generator, using randint now
+            action_p = np.random.randint(
+                0, 6, 2
+            )  # Perception agent action generator, using randint now
+            action_a = np.random.randint(
+                0, 4, 2
+            )  # Action agent action generator, using randint now
 
             actions = list(action_p) + list(action_a)
 
-            state, reward, done, perception_complete, action_complete = self.env_step(actions, planar_vel, vert_vel, min_alt, max_alt)  # step forward
+            state, reward, done, perception_complete, action_complete = self.env_step(
+                actions, planar_vel, vert_vel, min_alt, max_alt
+            )  # step forward
 
         return self.frame
 
@@ -762,31 +1052,42 @@ class FireCommanderExtreme(object):
         self.agent_state_buffer.append(self.agent_state)  # agent State
         self.sensed_List_Buffer.append(self.sensed_List)  # sensing List Buffer
         self.pruned_List_Buffer.append(self.pruned_List)  # pruning List Buffer
-        self.reward_buffer.append(self.reward)            # Reward variations
+        self.reward_buffer.append(self.reward)  # Reward variations
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     # initialize the env
     env = FireCommanderExtreme(online_vis=True)
     env.env_init()
-    
+
     # go through episodes of the game
     num_episode = 1000
     for step in range(num_episode):
-        action_p = np.random.randint(0, 6, 2)  # Perception agent action generator, using randint now
-        action_a = np.random.randint(0, 5, 2)  # Action agent action generator, using randint now
+        action_p = np.random.randint(
+            0, 6, 2
+        )  # Perception agent action generator, using randint now
+        action_a = np.random.randint(
+            0, 5, 2
+        )  # Action agent action generator, using randint now
 
         actions = list(action_p) + list(action_a)
-    
-        state, reward, done, perception_complete, action_complete = env.env_step(actions, vert_vel=2, min_alt=5, max_alt=15, time_passed=step,
-                                                                                 a_c_threshold=1.1, r_func='RF3')
+
+        state, reward, done, perception_complete, action_complete = env.env_step(
+            actions,
+            vert_vel=2,
+            min_alt=5,
+            max_alt=15,
+            time_passed=step,
+            a_c_threshold=1.1,
+            r_func="RF3",
+        )
 
         print(">>> Step is ", step)
         env.env_visualize()  # env visualizer, for debugging
-    
+
     # Visualize the last state
     print(">>>reward is ", reward)
     plt.imshow(state)
     plt.show()
-    
+
     env.env_close()

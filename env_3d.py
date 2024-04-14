@@ -6,6 +6,7 @@ from itertools import product
 from classes import PRMController, Obstacle, Utils
 from classes.Gaussian2D import Gaussian2D
 from matplotlib import pyplot as plt
+
 # from gp_ipp import GaussianProcessForIPP
 from gp_st_ipp import GaussianProcessWrapper
 
@@ -16,6 +17,7 @@ from numba import jit
 import time
 from scipy.ndimage import gaussian_filter
 from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
+
 
 def add_t(X, t: float):
     return np.concatenate((X, np.zeros((X.shape[0], 1)) + t), axis=1)
@@ -107,8 +109,8 @@ class Env:
         self.MI0 = None
 
         # start point
-        self.current_node_index = 0 #1  # 0 used in STAMP
-        self.sample = self.start.copy()
+        self.current_node_index = 1  # 1  # 0 used in STAMP
+        self.sample = self.start
         self.dist_residual = 0
         self.route = []
 
@@ -151,6 +153,13 @@ class Env:
         #         observed_values = np.array([self.ground_truth[sample_index]]).T
 
         self.node_feature = self.gp_wrapper.update_node_feature(self.curr_t)
+        # node_info, node_info_future = self.node_feature[:, :2], self.node_feature[:, 2:]
+        # node_pred, node_std = node_info[:, 0], node_info[:, 1]
+        # node_info = node_pred
+
+        # self.node_feature = self.gp_wrapper.update_node_feature(self.curr_t)
+        # node_feature = self.node_feature[:, self.n_agents].reshape(-1, 1, self.node_feature.shape[1])
+        # node_pred, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
 
         # initialize evaluations
         self.RMSE = self.gp_wrapper.eval_avg_RMSE(self.ground_truth, self.curr_t)
@@ -176,10 +185,10 @@ class Env:
         self.budget = self.budget_init
 
         # start point
-        self.current_node_index = 0 #1
+        self.current_node_index = 1  # 1
         self.dist_residual = 0
-        self.sample = self.start.copy()
-        self.random_speed_factor = np.random.rand()
+        self.sample = self.start
+        # self.random_speed_factor = np.random.rand()
         self.route = []
 
         # self.gp_ipp = GaussianProcessForIPP(self.node_coords)
@@ -257,7 +266,7 @@ class Env:
             self.underlying_distribution.single_agent_state_update(
                 self.sample.reshape(-1, 2)[0]
             )
-            # time1 = time.time()
+            time1 = time.time()
             (
                 fire_state,
                 fire_reward,
@@ -266,8 +275,8 @@ class Env:
                 fire_action_complete,
                 interp_fire_intensity,
             ) = self.fire.env_step(r_func="RF4")
-            # time2 = time.time()
-            # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
+            time2 = time.time()
+            print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
             reward += fire_reward
             # self.set_ground_truth(fire_map=interp_fire_intensity)
             # time1 = time.time()
@@ -288,25 +297,25 @@ class Env:
             next_length = sample_length
             no_sample = False
 
-            if eval_speed and self.gp_wrapper.GPs[0].observed_points:  # only in testing
-                self.gp_wrapper.update_gps()
-                metrics["budget"] += [self.budget_init - self.budget]
-                metrics["dtotarget"] += [self.d_to_target]
-                metrics["rmse"] += [
-                    self.gp_wrapper.eval_avg_RMSE(self.ground_truth, self.curr_t)
-                ]
-                JS, JS_list = self.gp_wrapper.eval_avg_JS(
-                    self.ground_truth, self.curr_t, return_all=True
-                )
-                metrics["jsd"] += [JS]
-                metrics["jsdall"] += [JS_list]
-                metrics["jsdstd"] += [np.std(JS_list)]
-                unc, unc_list = self.gp_wrapper.eval_avg_unc(
-                    self.curr_t, self.high_info_idx, return_all=True
-                )
-                metrics["unc"] += [unc]
-                metrics["uncall"] += [unc_list]
-                metrics["uncstd"] += [np.std(unc_list)]
+            # if eval_speed and self.gp_wrapper.GPs[0].observed_points:  # only in testing
+            #     self.gp_wrapper.update_gps()
+            #     metrics["budget"] += [self.budget_init - self.budget]
+            #     metrics["dtotarget"] += [self.d_to_target]
+            #     metrics["rmse"] += [
+            #         self.gp_wrapper.eval_avg_RMSE(self.ground_truth, self.curr_t)
+            #     ]
+            #     JS, JS_list = self.gp_wrapper.eval_avg_JS(
+            #         self.ground_truth, self.curr_t, return_all=True
+            #     )
+            #     metrics["jsd"] += [JS]
+            #     metrics["jsdall"] += [JS_list]
+            #     metrics["jsdstd"] += [np.std(JS_list)]
+            #     unc, unc_list = self.gp_wrapper.eval_avg_unc(
+            #         self.curr_t, self.high_info_idx, return_all=True
+            #     )
+            #     metrics["unc"] += [unc]
+            #     metrics["uncall"] += [unc_list]
+            #     metrics["uncstd"] += [np.std(unc_list)]
 
         # time1 = time.time()
         # self.node_info, self.node_std = self.gp_ipp.update_node()
@@ -322,14 +331,17 @@ class Env:
         actual_budget = self.budget - self.dist_residual
 
         # time1 = time.time()
+        # self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
+        # node_feature = self.node_feature[:, self.n_agents].reshape(-1, 1, self.node_feature.shape[1])
+        # node_pred, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
+
         self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
+        # node_info, node_info_future = self.node_feature[:, :2], self.node_feature[:, 2:]
+        # node_pred, node_std = node_info[:, 0], node_info[:, 1]
+        # node_info = node_pred
+
         # time2 = time.time()
         # print(f">>> Time to update node feature: {time2 - time1:.4f}")
-
-        # time1 = time.time()
-        # self.ground_truth = self.get_ground_truth()
-        # time2 = time.time()
-        # print(f">>> Time to get ground truth: {time2 - time1:.4f}")
 
         # time1 = time.time()
         self.high_info_idx = self.get_high_info_idx() if self.ADAPTIVE_TH else None
@@ -337,45 +349,27 @@ class Env:
         # print(f">>> Time to get high info idx: {time2 - time1:.4f}")
 
         # # evaluate metrics
-        # time1 = time.time()
+
         self.RMSE = self.gp_wrapper.eval_avg_RMSE(self.ground_truth, actual_t)
-        # time2 = time.time()
-        # print(f">>> Time to evaluate RMSE: {time2 - time1:.4f}")
 
-        # time1 = time.time()
         cov_trace = self.gp_wrapper.eval_avg_cov_trace(actual_t, self.high_info_idx)
-        # time2 = time.time()
-        # print(f">>> Time to evaluate cov trace: {time2 - time1:.4f}")
 
-        # time1 = time.time()
         unc, unc_list = self.gp_wrapper.eval_avg_unc(
             actual_t, self.high_info_idx, return_all=True
         )
-        # time2 = time.time()
-        # print(f">>> Time to evaluate unc: {time2 - time1:.4f}")
 
-        # time1 = time.time()
         unc_sum, unc_sum_list = self.gp_wrapper.eval_avg_unc_sum(
             self.unc_list, self.high_info_idx, return_all=True
         )
-        # time2 = time.time()
-        # print(f">>> Time to evaluate unc sum: {time2 - time1:.4f}")
 
-        # time1 = time.time()
         JS, JS_list = self.gp_wrapper.eval_avg_JS(
             self.ground_truth, actual_t, return_all=True
         )
-        # time2 = time.time()
-        # print(f">>> Time to evaluate JS: {time2 - time1:.4f}")
 
-        # time1 = time.time()
         KL, KL_list = self.gp_wrapper.eval_avg_KL(
             self.ground_truth, actual_t, return_all=True
         )
-        # time2 = time.time()
-        # print(f">>> Time to evaluate KL: {time2 - time1:.4f}")
 
-        # # time1 = time.time()
         # if measurement:
         #     self.high_info_area = self.gp_ipp.get_high_info_area(t=self.ADAPTIVE_TH) if self.ADAPTIVE_AREA else None
         # #F1score = self.gp_ipp.evaluate_F1score(self.ground_truth)
@@ -404,68 +398,6 @@ class Env:
 
         return reward, done, self.node_feature, actual_budget, metrics
         # return reward, done, self.node_info, self.node_std, self.budget
-
-    # def route_step(self, route, sample_length, measurement=True):
-    #     current_node = route[0]
-    #     for next_node in route[1:]:
-    #         dist = np.linalg.norm(current_node - next_node)
-    #         remain_length = dist
-    #         next_length = sample_length - self.dist_residual
-    #         no_sample = True
-    #         while remain_length > next_length:
-    #             if no_sample:
-    #                 self.sample = (
-    #                     next_node - current_node
-    #                 ) * next_length / dist + current_node
-    #             else:
-    #                 self.sample = (
-    #                     next_node - current_node
-    #                 ) * next_length / dist + self.sample
-    #             observed_value = self.underlying_distribution.return_fire_at_location(
-    #                 self.sample.reshape(-1, 2)[0]
-    #             )  # + np.random.normal(0, 1e-10)
-    #             self.gp_ipp.add_observed_point(self.sample, observed_value)
-    #             remain_length -= next_length
-    #             next_length = sample_length
-    #             no_sample = False
-
-    #             self.underlying_distribution.single_agent_state_update(
-    #                 self.sample.reshape(-1, 2)[0]
-    #             )
-    #             (
-    #                 fire_state,
-    #                 fire_reward,
-    #                 fire_done,
-    #                 fire_perception_complete,
-    #                 fire_action_complete,
-    #                 interp_fire_intensity,
-    #             ) = self.fire.env_step()
-    #             reward += fire_reward
-    #             # self.set_ground_truth(fire_map=interp_fire_intensity)
-    #             self.set_momentum_GT(fire_map=interp_fire_intensity)
-
-    #         self.dist_residual = (
-    #             self.dist_residual + remain_length if no_sample else remain_length
-    #         )
-    #         self.dist_residual_tmp = self.dist_residual
-    #         if measurement:
-    #             self.budget -= dist
-    #         current_node = next_node
-
-    #     self.gp_ipp.update_gp()
-
-    #     if measurement:
-    #         self.high_info_area = (
-    #             self.gp_ipp.get_high_info_area(t=self.ADAPTIVE_TH)
-    #             if self.ADAPTIVE_AREA
-    #             else None
-    #         )
-    #         cov_trace = self.gp_ipp.evaluate_cov_trace(self.high_info_area)
-    #         self.cov_trace = cov_trace
-    #     else:
-    #         cov_trace = self.gp_ipp.evaluate_cov_trace(self.high_info_area)
-
-    #     return cov_trace
 
     @staticmethod
     @jit(nopython=True, parallel=True, fastmath=True)
@@ -540,22 +472,12 @@ class Env:
         del ground_truth
 
     def get_high_info_idx(self):
-        high_info_idx = []
-        for i in range(self.n_agents):
-            idx = np.argwhere(self.ground_truth > self.ADAPTIVE_TH)
-            high_info_idx += [idx.squeeze(1)]
-        return high_info_idx
-        
-    def get_high_info_area(self, t=0, beta=1):
-        x1 = np.linspace(0, 1, self.env_size)
-        x2 = np.linspace(0, 1, self.env_size)
-        x1x2 = np.array(list(product(x1, x2)))
-        high_info_idx = []
-        for i in range(900):
-            if self.ground_truth[i] >= self.ADAPTIVE_TH:
-                high_info_idx.append(x1x2[i])
-        high_info_idx = np.array(high_info_idx)
-        return high_info_idx
+        # high_info_idx = []
+        # idx = np.argwhere(self.ground_truth > self.ADAPTIVE_TH)
+        # high_info_idx += [idx.squeeze(1)]
+        # return high_info_idx
+        # return entire grid
+        return [np.arange(900)]
 
     def plot(
         self, route, n, step, path, testID=0, CMAES_route=False, sampling_path=False
@@ -603,7 +525,9 @@ class Env:
 
         plt.subplot(2, 2, 4)
         plt.title("High interest area")
-        high_area = self.get_high_info_area(t=self.ADAPTIVE_TH)
+        high_area = self.gp_wrapper.get_high_info_area(
+            curr_t=self.curr_t, adaptive_t=self.ADAPTIVE_TH
+        )[0]
         xh = high_area[:, 0]
         yh = high_area[:, 1]
         plt.hist2d(

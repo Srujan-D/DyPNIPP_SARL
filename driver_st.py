@@ -166,6 +166,7 @@ def main():
             )
         )
         curr_episode += 1
+        print("+++++++Starting episode", curr_episode, "on metaAgent", i)
     # metric_name = ['remain_budget', 'success_rate', 'RMSE', 'delta_cov_trace', 'MI', 'F1Score', 'cov_trace']
 
     metric_name = [
@@ -191,6 +192,7 @@ def main():
 
     try:
         while True:
+            print("in infinite loop")
             # wait for any job to be completed
             done_id, jobList = ray.wait(jobList, num_returns=NUM_META_AGENT)
             # get the results
@@ -258,6 +260,8 @@ def main():
                 LSTM_c_batch = torch.stack(rollouts[10])
                 mask_batch = torch.stack(rollouts[11])
                 pos_encoding_batch = torch.stack(rollouts[12])
+
+                breakpoint()
 
                 if device != local_device:
                     node_inputs_batch = node_inputs_batch.to(device)
@@ -386,6 +390,8 @@ def main():
                     )
                 )
                 curr_episode += 1
+
+                print("+++++++Starting episode", curr_episode, "on metaAgent", i)
 
             if curr_episode % 32 == 0:
                 print("Saving model", end="\n")

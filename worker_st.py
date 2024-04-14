@@ -13,7 +13,9 @@ from attention_net import AttentionNet
 from parameters import *
 import scipy.signal as signal
 
-import time 
+import time
+
+
 def discount(x, gamma):
     return signal.lfilter([1], [1, -gamma], x[::-1], axis=0)[::-1]
 
@@ -64,10 +66,13 @@ class Worker:
         done = False
         # node_coords, graph, node_info, node_std, budget = self.env.reset()
         node_coords, graph, node_feature, budget = self.env.reset()
-        # get node_pred, node_std, node_pred_future, node_std_future from node_feature
-        node_feature = node_feature.reshape(node_coords.shape[0], self.n_agents, 4)
-        node_info, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
-        node_info_future, node_std_future = node_feature[:, :, 2], node_feature[:, :, 3]
+        # get node_pred, node_std, node_pred_future, node_std_futre from node_feature
+        # node_feature = node_feature[:, self.n_agents].reshape(-1, self.n_agents, node_feature.shape[1])
+        # node_info, node_std = node_feature[:, :, 0], node_feature[:, :, 1]u
+
+        node_info, node_info_future = node_feature[:, :2], node_feature[:, 2:]
+        node_pred, node_std = node_info[:, 0], node_info[:, 1]
+        node_info = node_pred
 
         n_nodes = node_coords.shape[0]
         node_info_inputs = node_info.reshape((n_nodes, 1))
@@ -113,7 +118,7 @@ class Worker:
         mask = torch.zeros((1, self.sample_size + 2, K_SIZE), dtype=torch.int64).to(
             self.device
         )
-        
+
         # perf metrics lists
         rmse_list = [self.env.RMSE]
         unc_list = [self.env.unc_list]
@@ -145,6 +150,7 @@ class Worker:
                     LSTM_c,
                     pos_encoding,
                     mask,
+                    i,
                 )
             # next_node (1), logp_list (1, 10), value (1,1,1)
             if self.greedy:
@@ -162,21 +168,21 @@ class Worker:
             next_node_index = edge_inputs[:, current_index.item(), action_index.item()]
             route.append(next_node_index.item())
             # reward, done, node_info, node_std, remain_budget = self.env.step(next_node_index.item(), self.sample_length)
-            time1 = time.time()
+            # time1 = time.time()
             reward, done, node_feature, remain_budget, _ = self.env.step(
                 next_node_index.item(), self.sample_length
             )
-            time2 = time.time()
-            print(f"--------------------> time for step is {time2 - time1:.4f}")
+            # time2 = time.time()
+            # print(f"--------------------> time for step is {time2 - time1:.4f}")
 
-            # get node_pred, node_std, node_pred_future, node_std_future from node_feature
-            node_feature = node_feature.reshape(node_coords.shape[0], self.n_agents, 4)
-            node_info, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
-            node_info_future, node_std_future = (
-                node_feature[:, :, 2],
-                node_feature[:, :, 3],
-            )
-            
+            # # # get node_pred, node_std, node_pred_future, node_std_future from node_feature
+            # node_feature = node_feature[:, self.n_agents].reshape(-1, self.n_agents, node_feature.shape[1])
+            # node_info, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
+
+            node_info, node_info_future = node_feature[:, :2], node_feature[:, 2:]
+            node_pred, node_std = node_info[:, 0], node_info[:, 1]
+            node_info = node_pred
+
             rmse_list += [self.env.RMSE]
             unc_list += [self.env.unc_list]
             jsd_list += [self.env.JS_list]
@@ -203,7 +209,16 @@ class Worker:
             budget_inputs = (
                 torch.FloatTensor(budget_inputs).unsqueeze(0).to(self.device)
             )
-            # print(node_inputs)
+            current_edge = torch.gather(edge_inputs, 1, current_index.repeat(1, 1, edge_inputs.size()[2])).permute(0, 2, 1)
+            connected_nodes_budget = torch.gather(budget_inputs, 1, current_edge)
+            if all(connected_nodes_budget.squeeze(0).squeeze(1) <= 0):
+                print("================Overbudget!")
+                print("remain_budget", remain_budget)
+                print("current_index", current_index)
+            else:
+                print("connected_nodes_budget", connected_nodes_budget)
+
+            
 
             # mask last five node
             mask = torch.zeros((1, self.sample_size + 2, K_SIZE), dtype=torch.int64).to(
@@ -229,7 +244,7 @@ class Worker:
                 episode_buffer[6] = episode_buffer[4][1:]
                 episode_buffer[6].append(torch.FloatTensor([[0]]).to(self.device))
                 if self.env.current_node_index == 0:
-                    
+
                     budget_list = [0]
 
                     # perf_metrics["remain_budget"] = remain_budget / budget
@@ -272,19 +287,21 @@ class Worker:
                 jsd_list = [self.env.JS_list]
                 kld_list = [self.env.KL_list]
                 unc_list = [self.env.unc_list]
-                perf_metrics['avgrmse'] = np.mean(rmse_list)
-                perf_metrics['avgunc'] = np.mean(unc_list)
-                perf_metrics['avgjsd'] = np.mean(jsd_list)
-                perf_metrics['avgkld'] = np.mean(kld_list)
-                perf_metrics['stdunc'] = np.mean(unc_stddev_list)
-                perf_metrics['stdjsd'] = np.mean(jsd_stddev_list)
-                perf_metrics['f1'] = self.env.gp_wrapper.eval_avg_F1(self.env.ground_truth, self.env.curr_t)
-                perf_metrics['mi'] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
+                perf_metrics["avgrmse"] = np.mean(rmse_list)
+                perf_metrics["avgunc"] = np.mean(unc_list)
+                perf_metrics["avgjsd"] = np.mean(jsd_list)
+                perf_metrics["avgkld"] = np.mean(kld_list)
+                perf_metrics["stdunc"] = np.mean(unc_stddev_list)
+                perf_metrics["stdjsd"] = np.mean(jsd_stddev_list)
+                perf_metrics["f1"] = self.env.gp_wrapper.eval_avg_F1(
+                    self.env.ground_truth, self.env.curr_t
+                )
+                perf_metrics["mi"] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
                 # perf_metrics['covtr'] = self.env.cov_trace
-                perf_metrics['js'] = self.env.JS
-                perf_metrics['rmse'] = self.env.RMSE
-                perf_metrics['scalex'] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-                perf_metrics['scalet'] = 3  # scale_t
+                perf_metrics["js"] = self.env.JS
+                perf_metrics["rmse"] = self.env.RMSE
+                perf_metrics["scalex"] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+                perf_metrics["scalet"] = 3  # scale_t
                 perf_metrics["cov_trace"] = self.env.cov_trace
                 break
         if not done:
@@ -302,17 +319,19 @@ class Worker:
                 )
             episode_buffer[6].append(value.squeeze(0))
             perf_metrics["remain_budget"] = remain_budget / budget
-            perf_metrics['avgrmse'] = np.mean(rmse_list)
-            perf_metrics['avgunc'] = np.mean(unc_list)
-            perf_metrics['avgjsd'] = np.mean(jsd_list)
-            perf_metrics['avgkld'] = np.mean(kld_list)
-            perf_metrics['stdunc'] = np.mean(unc_stddev_list)
-            perf_metrics['stdjsd'] = np.mean(jsd_stddev_list)
-            perf_metrics['f1'] = self.env.gp_wrapper.eval_avg_F1(self.env.ground_truth, self.env.curr_t)
-            perf_metrics['mi'] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
-            perf_metrics['cov_trace'] = self.env.cov_trace
-            perf_metrics['js'] = self.env.JS
-            perf_metrics['rmse'] = self.env.RMSE
+            perf_metrics["avgrmse"] = np.mean(rmse_list)
+            perf_metrics["avgunc"] = np.mean(unc_list)
+            perf_metrics["avgjsd"] = np.mean(jsd_list)
+            perf_metrics["avgkld"] = np.mean(kld_list)
+            perf_metrics["stdunc"] = np.mean(unc_stddev_list)
+            perf_metrics["stdjsd"] = np.mean(jsd_stddev_list)
+            perf_metrics["f1"] = self.env.gp_wrapper.eval_avg_F1(
+                self.env.ground_truth, self.env.curr_t
+            )
+            perf_metrics["mi"] = self.env.gp_wrapper.eval_avg_MI(self.env.curr_t)
+            perf_metrics["cov_trace"] = self.env.cov_trace
+            perf_metrics["js"] = self.env.JS
+            perf_metrics["rmse"] = self.env.RMSE
             # perf_metrics["RMSE"] = self.env.gp_ipp.evaluate_RMSE(self.env.ground_truth)
             # perf_metrics["F1Score"] = self.env.gp_ipp.evaluate_F1score(
             #     self.env.ground_truth
@@ -323,8 +342,8 @@ class Worker:
             # )
             # perf_metrics["cov_trace"] = self.env.cov_trace
             perf_metrics["success_rate"] = False
-            perf_metrics['scalex'] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-            perf_metrics['scalet'] = 3  # scale_t
+            perf_metrics["scalex"] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+            perf_metrics["scalet"] = 3  # scale_t
 
         print("route is ", route)
         reward = copy.deepcopy(episode_buffer[5])

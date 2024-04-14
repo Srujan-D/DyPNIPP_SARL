@@ -45,7 +45,7 @@ class Runner(object):
             "id": self.metaAgentID,
             "episode_number": episodeNumber,
         }
-
+        print("finished episode {} on metaAgent {}".format(episodeNumber, self.metaAgentID))
         return jobResults, metrics, info
 
   

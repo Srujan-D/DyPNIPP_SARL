@@ -112,11 +112,11 @@ class GaussianProcess:
         )
         return mi
 
-    def get_high_info_area(self, t=ADAPTIVE_TH, beta=1):
+    def get_high_info_area(self, curr_t=0, t=ADAPTIVE_TH, beta=1):
         x1 = np.linspace(0, 1, self.env_size)
         x2 = np.linspace(0, 1, self.env_size)
         x1x2 = np.array(list(product(x1, x2)))
-        y_pred, std = self.gp.predict(x1x2, return_std=True)
+        y_pred, std = self.gp.predict(add_t(x1x2, curr_t), return_std=True)
 
         high_measurement_area = []
         for i in range(900):
@@ -269,6 +269,7 @@ class GaussianProcessWrapper:
         if t != self.curr_t:
             self.curr_t = t
             self.update_grids()
+        node_pred, node_std = None, None
         node_info, node_info_future = [], []  # (target, node, 2)
         for gp in self.GPs:
             node_pred, node_std = gp.update_node(t)
@@ -288,6 +289,16 @@ class GaussianProcessWrapper:
             self.node_coords.shape[0], -1
         )  # (node, (targetxfeature))
         # contiguous at feature level
+        # og, og_future = node_feature[:, :2], node_feature[:, 2:]
+        # og_pred, og_std = og[:, 0], og[:, 1]
+        # print("testing-----------node feature")
+        # print('Node_pred is ', node_pred)
+        # print('og_pred is ', og_pred)
+        # print('Node_std is ', node_std)
+        # print('og_std is ', og_std)
+        # print("................node feature is ", node_feature.shape)
+        # quit()
+
         return node_feature
 
     def update_grids(self):
@@ -373,6 +384,12 @@ class GaussianProcessWrapper:
             MI += [gp.evaluate_mutual_info(self.curr_t)]
         avg_MI = np.mean(MI)
         return (avg_MI, MI) if return_all else avg_MI
+
+    def get_high_info_area(self, curr_t, adaptive_t, return_all=False):
+        high_info_area = []
+        for gp in self.GPs:
+            high_info_area += [gp.get_high_info_area(curr_t=curr_t, t=adaptive_t)]
+        return high_info_area
 
     def plot(self, y_true, curr_t=0):
         for gp in self.GPs:
