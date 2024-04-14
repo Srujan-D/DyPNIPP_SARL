@@ -400,7 +400,7 @@ class AttentionNet(nn.Module):
         try:
             assert 0 in current_mask
         except:
-            print("-------------------------", current_mask)
+            print("-------------------------", connected_nodes_budget.permute(0, 2, 1))
             print("----------current mask with i =", i)
             assert 0 in current_mask
 

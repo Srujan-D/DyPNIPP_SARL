@@ -154,6 +154,7 @@ def main():
     else:
         weights = global_network.state_dict()
 
+    breakpoint()
     # launch the first job on each runner
     dp_model = nn.DataParallel(global_network)
 
@@ -260,8 +261,6 @@ def main():
                 LSTM_c_batch = torch.stack(rollouts[10])
                 mask_batch = torch.stack(rollouts[11])
                 pos_encoding_batch = torch.stack(rollouts[12])
-
-                breakpoint()
 
                 if device != local_device:
                     node_inputs_batch = node_inputs_batch.to(device)

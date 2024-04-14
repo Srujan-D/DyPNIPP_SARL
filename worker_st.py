@@ -169,7 +169,7 @@ class Worker:
             route.append(next_node_index.item())
             # reward, done, node_info, node_std, remain_budget = self.env.step(next_node_index.item(), self.sample_length)
             # time1 = time.time()
-            reward, done, node_feature, remain_budget, _ = self.env.step(
+            reward, done, node_feature, remain_budget = self.env.step(
                 next_node_index.item(), self.sample_length
             )
             # time2 = time.time()
@@ -211,12 +211,12 @@ class Worker:
             )
             current_edge = torch.gather(edge_inputs, 1, current_index.repeat(1, 1, edge_inputs.size()[2])).permute(0, 2, 1)
             connected_nodes_budget = torch.gather(budget_inputs, 1, current_edge)
-            if all(connected_nodes_budget.squeeze(0).squeeze(1) <= 0):
+            if all(connected_nodes_budget.squeeze(0).squeeze(1)[1:] <= 0):
                 print("================Overbudget!")
                 print("remain_budget", remain_budget)
                 print("current_index", current_index)
             else:
-                print("connected_nodes_budget", connected_nodes_budget)
+                print("------>connected_nodes_budget", connected_nodes_budget.permute(0, 2, 1), remain_budget)
 
             
 

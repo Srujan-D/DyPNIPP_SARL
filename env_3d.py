@@ -44,8 +44,7 @@ class Env:
         self.sample_size = sample_size
         self.k_size = k_size
         self.budget_range = budget_range
-        self.budget_init = np.random.uniform(*self.budget_range)
-        self.budget = np.random.uniform(*self.budget_range)
+        self.budget = self.budget_init = np.random.uniform(*self.budget_range)
         if start is None:
             self.start = np.random.rand(1, 2)
         else:
@@ -71,7 +70,6 @@ class Env:
         self.prm = PRMController(
             self.sample_size, self.obstacle, self.start, self.destination, self.k_size
         )
-        self.budget = np.random.uniform(*self.budget_range)
         self.node_coords, self.graph = self.prm.runPRM(saveImage=False, seed=seed)
 
         # underlying distribution
@@ -226,17 +224,6 @@ class Env:
         )
         remain_length = dist
         next_length = sample_length - self.dist_residual
-        metrics = {
-            "budget": [],
-            "dtotarget": [],
-            "rmse": [],
-            "jsd": [],
-            "jsdall": [],
-            "jsdstd": [],
-            "unc": [],
-            "uncall": [],
-            "uncstd": [],
-        }
         reward = 0
         done = True if next_node_index == 0 else False
         no_sample = True
@@ -262,6 +249,10 @@ class Env:
 
             self.curr_t += next_length
             self.budget -= next_length
+
+            remain_length -= next_length
+            next_length = sample_length
+            no_sample = False
 
             self.underlying_distribution.single_agent_state_update(
                 self.sample.reshape(-1, 2)[0]
@@ -293,48 +284,23 @@ class Env:
             # time2 = time.time()
             # print(f">>> Time to add obs points: {time2 - time1:.4f}")
 
-            remain_length -= next_length
-            next_length = sample_length
-            no_sample = False
-
-            # if eval_speed and self.gp_wrapper.GPs[0].observed_points:  # only in testing
-            #     self.gp_wrapper.update_gps()
-            #     metrics["budget"] += [self.budget_init - self.budget]
-            #     metrics["dtotarget"] += [self.d_to_target]
-            #     metrics["rmse"] += [
-            #         self.gp_wrapper.eval_avg_RMSE(self.ground_truth, self.curr_t)
-            #     ]
-            #     JS, JS_list = self.gp_wrapper.eval_avg_JS(
-            #         self.ground_truth, self.curr_t, return_all=True
-            #     )
-            #     metrics["jsd"] += [JS]
-            #     metrics["jsdall"] += [JS_list]
-            #     metrics["jsdstd"] += [np.std(JS_list)]
-            #     unc, unc_list = self.gp_wrapper.eval_avg_unc(
-            #         self.curr_t, self.high_info_idx, return_all=True
-            #     )
-            #     metrics["unc"] += [unc]
-            #     metrics["uncall"] += [unc_list]
-            #     metrics["uncstd"] += [np.std(unc_list)]
-
         # time1 = time.time()
         # self.node_info, self.node_std = self.gp_ipp.update_node()
         if self.gp_wrapper.GPs[0].observed_points:
             self.gp_wrapper.update_gps()
         # time2 = time.time()
         # print(f">>> Time to update GPs: {time2 - time1:.4f}")
-
+        
         self.dist_residual = (
             self.dist_residual + remain_length if no_sample else remain_length
         )
+        # self.budget -= dist
         actual_t = self.curr_t + self.dist_residual
         actual_budget = self.budget - self.dist_residual
+        # actual_t = self.curr_t
+        # actual_budget = self.budget
 
         # time1 = time.time()
-        # self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
-        # node_feature = self.node_feature[:, self.n_agents].reshape(-1, 1, self.node_feature.shape[1])
-        # node_pred, node_std = node_feature[:, :, 0], node_feature[:, :, 1]
-
         self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
         # node_info, node_info_future = self.node_feature[:, :2], self.node_feature[:, 2:]
         # node_pred, node_std = node_info[:, 0], node_info[:, 1]
@@ -396,7 +362,7 @@ class Env:
         self.current_node_index = next_node_index
         done = True if actual_budget <= 0 else False
 
-        return reward, done, self.node_feature, actual_budget, metrics
+        return reward, done, self.node_feature, actual_budget
         # return reward, done, self.node_info, self.node_std, self.budget
 
     @staticmethod
