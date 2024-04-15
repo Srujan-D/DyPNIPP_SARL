@@ -141,6 +141,10 @@ class Worker:
                 # print('pos_encoding size is ', pos_encoding.size())
                 # print('mask size is ', mask.size())
                 # quit()
+                import pdb
+                pdb.set_trace()
+                print("bud get : ", budget_inputs)
+                
                 logp_list, value, LSTM_h, LSTM_c = self.local_net(
                     node_inputs,
                     edge_inputs,
@@ -215,8 +219,8 @@ class Worker:
                 print("================Overbudget!")
                 print("remain_budget", remain_budget)
                 print("current_index", current_index)
-            else:
-                print("------>connected_nodes_budget", connected_nodes_budget.permute(0, 2, 1), remain_budget)
+            # else:
+            #     print("------>connected_nodes_budget", connected_nodes_budget.permute(0, 2, 1), remain_budget)
 
             
 
@@ -300,8 +304,9 @@ class Worker:
                 # perf_metrics['covtr'] = self.env.cov_trace
                 perf_metrics["js"] = self.env.JS
                 perf_metrics["rmse"] = self.env.RMSE
-                perf_metrics["scalex"] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-                perf_metrics["scalet"] = 3  # scale_t
+                perf_metrics["scalex"] = self.env.GPs[0].kernel.length_scale[0] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+                perf_metrics["scaley"] = self.env.GPs[0].kernel.length_scale[1] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+                perf_metrics["scalet"] = self.env.GPs[0].kernel.length_scale[2] #3  # scale_t
                 perf_metrics["cov_trace"] = self.env.cov_trace
                 break
         if not done:
@@ -342,8 +347,9 @@ class Worker:
             # )
             # perf_metrics["cov_trace"] = self.env.cov_trace
             perf_metrics["success_rate"] = False
-            perf_metrics["scalex"] = 0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-            perf_metrics["scalet"] = 3  # scale_t
+            perf_metrics["scalex"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[0] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+            perf_metrics["scaley"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[1] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+            perf_metrics["scalet"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[2] #3  # scale_t
 
         print("route is ", route)
         reward = copy.deepcopy(episode_buffer[5])

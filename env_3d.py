@@ -245,10 +245,9 @@ class Env:
             else:
                 observed_value = np.array([0])
             # print(">>> Observed value is ", observed_value)
-            # self.gp_ipp.add_observed_point(self.sample, observed_value)
 
             self.curr_t += next_length
-            self.budget -= next_length
+            # self.budget -= next_length
 
             remain_length -= next_length
             next_length = sample_length
@@ -257,7 +256,7 @@ class Env:
             self.underlying_distribution.single_agent_state_update(
                 self.sample.reshape(-1, 2)[0]
             )
-            time1 = time.time()
+            # time1 = time.time()
             (
                 fire_state,
                 fire_reward,
@@ -266,17 +265,13 @@ class Env:
                 fire_action_complete,
                 interp_fire_intensity,
             ) = self.fire.env_step(r_func="RF4")
-            time2 = time.time()
-            print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
+            # time2 = time.time()
+            # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
             reward += fire_reward
             # self.set_ground_truth(fire_map=interp_fire_intensity)
-            # time1 = time.time()
             self.set_momentum_GT(fire_map=interp_fire_intensity)
-            # time2 = time.time()
-            # print(f">>> Time to set momentum GT: {time2 - time1:.4f}")
-
+            
             # time1 = time.time()
-            # self.gp_ipp.update_gp()
             for i in range(self.n_agents):
                 self.gp_wrapper.GPs[i].add_observed_point(
                     add_t(self.sample.reshape(-1, 2), self.curr_t), observed_value
@@ -294,11 +289,11 @@ class Env:
         self.dist_residual = (
             self.dist_residual + remain_length if no_sample else remain_length
         )
-        # self.budget -= dist
-        actual_t = self.curr_t + self.dist_residual
-        actual_budget = self.budget - self.dist_residual
-        # actual_t = self.curr_t
-        # actual_budget = self.budget
+        self.budget -= dist
+        # actual_t = self.curr_t + self.dist_residual
+        # actual_budget = self.budget - self.dist_residual
+        actual_t = self.curr_t
+        actual_budget = self.budget
 
         # time1 = time.time()
         self.node_feature = self.gp_wrapper.update_node_feature(actual_t)
@@ -493,9 +488,13 @@ class Env:
         plt.title("High interest area")
         high_area = self.gp_wrapper.get_high_info_area(
             curr_t=self.curr_t, adaptive_t=self.ADAPTIVE_TH
-        )[0]
-        xh = high_area[:, 0]
-        yh = high_area[:, 1]
+        )
+        try:
+            xh = high_area[0][:, 0]
+            yh = high_area[0][:, 1]
+        except:
+            # print("No high info area")
+            xh, yh = [], []
         plt.hist2d(
             xh, yh, bins=30, range=[[0, 1], [0, 1]], vmin=0, vmax=1, rasterized=True
         )

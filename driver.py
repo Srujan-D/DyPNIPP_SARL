@@ -34,54 +34,110 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
     if plotMeans == True:
         tensorboardData = np.array(tensorboardData)
         tensorboardData = list(np.nanmean(tensorboardData, axis=0))
-        metric_name = ['remain_budget', 'success_rate', 'RMSE', 'delta_cov_trace', 'MI', 'F1Score', 'cov_trace']
-        reward, value, policyLoss, valueLoss, entropy, gradNorm, returns, remain_budget, success_rate, RMSE, dct, MI, F1, cov_tr = tensorboardData
+        metric_name = [
+            "remain_budget",
+            "success_rate",
+            "RMSE",
+            "delta_cov_trace",
+            "MI",
+            "F1Score",
+            "cov_trace",
+        ]
+        (
+            reward,
+            value,
+            policyLoss,
+            valueLoss,
+            entropy,
+            gradNorm,
+            returns,
+            remain_budget,
+            success_rate,
+            RMSE,
+            dct,
+            MI,
+            F1,
+            cov_tr,
+        ) = tensorboardData
     else:
-        reward, value, policyLoss, valueLoss, entropy, gradNorm, returns, remain_budget, success_rate, RMSE, dct, MI, F1, cov_tr = tensorboardData
+        (
+            reward,
+            value,
+            policyLoss,
+            valueLoss,
+            entropy,
+            gradNorm,
+            returns,
+            remain_budget,
+            success_rate,
+            RMSE,
+            dct,
+            MI,
+            F1,
+            cov_tr,
+        ) = tensorboardData
 
-    writer.add_scalar(tag='Losses/Value', scalar_value=value, global_step=curr_episode)
-    writer.add_scalar(tag='Losses/Policy Loss', scalar_value=policyLoss, global_step=curr_episode)
-    writer.add_scalar(tag='Losses/Value Loss', scalar_value=valueLoss, global_step=curr_episode)
-    writer.add_scalar(tag='Losses/Entropy', scalar_value=entropy, global_step=curr_episode)
-    writer.add_scalar(tag='Losses/Grad Norm', scalar_value=gradNorm, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/Reward', scalar_value=reward, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/Returns', scalar_value=returns, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/Remain Budget', scalar_value=remain_budget, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/Success Rate', scalar_value=success_rate, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/RMSE', scalar_value=RMSE, global_step=curr_episode)
-    writer.add_scalar(tag='Perf/F1 Score', scalar_value=F1, global_step=curr_episode)
-    writer.add_scalar(tag='GP/MI', scalar_value=MI, global_step=curr_episode)
-    writer.add_scalar(tag='GP/Delta Cov Trace', scalar_value=dct, global_step=curr_episode)
-    writer.add_scalar(tag='GP/Cov Trace', scalar_value=cov_tr, global_step=curr_episode)
+    writer.add_scalar(tag="Losses/Value", scalar_value=value, global_step=curr_episode)
+    writer.add_scalar(
+        tag="Losses/Policy Loss", scalar_value=policyLoss, global_step=curr_episode
+    )
+    writer.add_scalar(
+        tag="Losses/Value Loss", scalar_value=valueLoss, global_step=curr_episode
+    )
+    writer.add_scalar(
+        tag="Losses/Entropy", scalar_value=entropy, global_step=curr_episode
+    )
+    writer.add_scalar(
+        tag="Losses/Grad Norm", scalar_value=gradNorm, global_step=curr_episode
+    )
+    writer.add_scalar(tag="Perf/Reward", scalar_value=reward, global_step=curr_episode)
+    writer.add_scalar(
+        tag="Perf/Returns", scalar_value=returns, global_step=curr_episode
+    )
+    writer.add_scalar(
+        tag="Perf/Remain Budget", scalar_value=remain_budget, global_step=curr_episode
+    )
+    writer.add_scalar(
+        tag="Perf/Success Rate", scalar_value=success_rate, global_step=curr_episode
+    )
+    writer.add_scalar(tag="Perf/RMSE", scalar_value=RMSE, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/F1 Score", scalar_value=F1, global_step=curr_episode)
+    writer.add_scalar(tag="GP/MI", scalar_value=MI, global_step=curr_episode)
+    writer.add_scalar(
+        tag="GP/Delta Cov Trace", scalar_value=dct, global_step=curr_episode
+    )
+    writer.add_scalar(tag="GP/Cov Trace", scalar_value=cov_tr, global_step=curr_episode)
 
 
 def main():
-    os.environ['CUDA_VISIBLE_DEVICES'] = str(CUDA_DEVICE)[1:-1]
-    device = torch.device('cuda') if USE_GPU_GLOBAL else torch.device('cpu')
-    local_device = torch.device('cuda') if USE_GPU else torch.device('cpu')
-    
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE)[1:-1]
+    device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
+    local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
+
     global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
     # global_network.share_memory()
     global_optimizer = optim.Adam(global_network.parameters(), lr=LR)
-    lr_decay = optim.lr_scheduler.StepLR(global_optimizer, step_size=DECAY_STEP, gamma=0.96)
+    lr_decay = optim.lr_scheduler.StepLR(
+        global_optimizer, step_size=DECAY_STEP, gamma=0.96
+    )
     # Automatically logs gradients of pytorch model
-    #wandb.watch(global_network, log_freq = SUMMARY_WINDOW)
+    # wandb.watch(global_network, log_freq = SUMMARY_WINDOW)
 
     best_perf = 900
     curr_episode = 0
     if LOAD_MODEL:
-        print('Loading Model...')
-        checkpoint = torch.load(model_path + '/checkpoint.pth')
-        global_network.load_state_dict(checkpoint['model'])
-        global_optimizer.load_state_dict(checkpoint['optimizer'])
-        lr_decay.load_state_dict(checkpoint['lr_decay'])
-        curr_episode = checkpoint['episode']
+        print("Loading Model...")
+        checkpoint = torch.load(model_path + "/checkpoint.pth")
+        global_network.load_state_dict(checkpoint["model"])
+        global_optimizer.load_state_dict(checkpoint["optimizer"])
+        lr_decay.load_state_dict(checkpoint["lr_decay"])
+        curr_episode = checkpoint["episode"]
         print("curr_episode set to ", curr_episode)
 
-        best_model_checkpoint = torch.load(model_path + '/best_model_checkpoint.pth')
-        best_perf = best_model_checkpoint['best_perf']
-        print('best performance so far:', best_perf)
-        print(global_optimizer.state_dict()['param_groups'][0]['lr'])
+        best_model_checkpoint = torch.load(model_path + "/best_model_checkpoint.pth")
+        best_perf = best_model_checkpoint["best_perf"]
+        print("best performance so far:", best_perf)
+        print(global_optimizer.state_dict()["param_groups"][0]["lr"])
 
     # launch meta agents
     meta_agents = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
@@ -97,11 +153,23 @@ def main():
     dp_model = nn.DataParallel(global_network)
 
     jobList = []
-    sample_size = np.random.randint(200,400)
+    sample_size = np.random.randint(200, 400)
     for i, meta_agent in enumerate(meta_agents):
-        jobList.append(meta_agent.job.remote(weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH))
+        jobList.append(
+            meta_agent.job.remote(
+                weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH
+            )
+        )
         curr_episode += 1
-    metric_name = ['remain_budget', 'success_rate', 'RMSE', 'delta_cov_trace', 'MI', 'F1Score', 'cov_trace']
+    metric_name = [
+        "remain_budget",
+        "success_rate",
+        "RMSE",
+        "delta_cov_trace",
+        "MI",
+        "F1Score",
+        "cov_trace",
+    ]
     tensorboardData = []
     trainingData = []
     experience_buffer = []
@@ -113,10 +181,10 @@ def main():
             # wait for any job to be completed
             done_id, jobList = ray.wait(jobList, num_returns=NUM_META_AGENT)
             # get the results
-            #jobResults, metrics, info = ray.get(done_id)[0]
+            # jobResults, metrics, info = ray.get(done_id)[0]
             done_jobs = ray.get(done_id)
             random.shuffle(done_jobs)
-            #done_jobs = list(reversed(done_jobs))
+            # done_jobs = list(reversed(done_jobs))
             perf_metrics = {}
             for n in metric_name:
                 perf_metrics[n] = []
@@ -126,18 +194,23 @@ def main():
                     experience_buffer[i] += jobResults[i]
                 for n in metric_name:
                     perf_metrics[n].append(metrics[n])
-            
-            if np.mean(perf_metrics['cov_trace']) < best_perf and curr_episode % 32 == 0:
-                best_perf = np.mean(perf_metrics['cov_trace'])
-                print('Saving best model', end='\n')
-                checkpoint = {"model": global_network.state_dict(),
-                              "optimizer": global_optimizer.state_dict(),
-                              "episode": curr_episode,
-                              "lr_decay": lr_decay.state_dict(),
-                              "best_perf": best_perf}
+
+            if (
+                np.mean(perf_metrics["cov_trace"]) < best_perf
+                and curr_episode % 32 == 0
+            ):
+                best_perf = np.mean(perf_metrics["cov_trace"])
+                print("Saving best model", end="\n")
+                checkpoint = {
+                    "model": global_network.state_dict(),
+                    "optimizer": global_optimizer.state_dict(),
+                    "episode": curr_episode,
+                    "lr_decay": lr_decay.state_dict(),
+                    "best_perf": best_perf,
+                }
                 path_checkpoint = "./" + model_path + "/best_model_checkpoint.pth"
                 torch.save(checkpoint, path_checkpoint)
-                print('Saved model', end='\n')
+                print("Saved model", end="\n")
 
             update_done = False
             while len(experience_buffer[0]) >= BATCH_SIZE:
@@ -152,15 +225,19 @@ def main():
                     experience_buffer = []
                     for i in range(13):
                         experience_buffer.append([])
-                    sample_size = np.random.randint(200,400)
+                    sample_size = np.random.randint(200, 400)
 
-                node_inputs_batch = torch.stack(rollouts[0], dim=0) # (batch,sample_size+2,2)
-                edge_inputs_batch = torch.stack(rollouts[1], dim=0) # (batch,sample_size+2,k_size)
-                current_inputs_batch = torch.stack(rollouts[2], dim=0) # (batch,1,1)
-                action_batch = torch.stack(rollouts[3], dim=0) # (batch,1,1)
-                value_batch = torch.stack(rollouts[4], dim=0) # (batch,1,1)
-                reward_batch = torch.stack(rollouts[5], dim=0) # (batch,1,1)
-                value_prime_batch = torch.stack(rollouts[6], dim=0) # (batch,1,1)
+                node_inputs_batch = torch.stack(
+                    rollouts[0], dim=0
+                )  # (batch,sample_size+2,2)
+                edge_inputs_batch = torch.stack(
+                    rollouts[1], dim=0
+                )  # (batch,sample_size+2,k_size)
+                current_inputs_batch = torch.stack(rollouts[2], dim=0)  # (batch,1,1)
+                action_batch = torch.stack(rollouts[3], dim=0)  # (batch,1,1)
+                value_batch = torch.stack(rollouts[4], dim=0)  # (batch,1,1)
+                reward_batch = torch.stack(rollouts[5], dim=0)  # (batch,1,1)
+                value_prime_batch = torch.stack(rollouts[6], dim=0)  # (batch,1,1)
                 target_v_batch = torch.stack(rollouts[7])
                 budget_inputs_batch = torch.stack(rollouts[8], dim=0)
                 LSTM_h_batch = torch.stack(rollouts[9])
@@ -185,22 +262,50 @@ def main():
 
                 # PPO
                 with torch.no_grad():
-                    logp_list, value, _, _ = global_network(node_inputs_batch, edge_inputs_batch, budget_inputs_batch, current_inputs_batch, LSTM_h_batch, LSTM_c_batch, pos_encoding_batch, mask_batch)
-                old_logp = torch.gather(logp_list, 1 , action_batch.squeeze(1)).unsqueeze(1) # (batch_size,1,1)
-                advantage = (reward_batch + GAMMA*value_prime_batch - value_batch) # (batch_size, 1, 1)
-                #advantage = target_v_batch - value_batch
+                    logp_list, value, _, _ = global_network(
+                        node_inputs_batch,
+                        edge_inputs_batch,
+                        budget_inputs_batch,
+                        current_inputs_batch,
+                        LSTM_h_batch,
+                        LSTM_c_batch,
+                        pos_encoding_batch,
+                        mask_batch,
+                    )
+                old_logp = torch.gather(
+                    logp_list, 1, action_batch.squeeze(1)
+                ).unsqueeze(
+                    1
+                )  # (batch_size,1,1)
+                advantage = (
+                    reward_batch + GAMMA * value_prime_batch - value_batch
+                )  # (batch_size, 1, 1)
+                # advantage = target_v_batch - value_batch
 
-                entropy = (logp_list*logp_list.exp()).sum(dim=-1).mean()
+                entropy = (logp_list * logp_list.exp()).sum(dim=-1).mean()
 
                 scaler = GradScaler()
 
                 for i in range(8):
                     with autocast():
-                        logp_list, value, _, _ = dp_model(node_inputs_batch, edge_inputs_batch, budget_inputs_batch, current_inputs_batch, LSTM_h_batch, LSTM_c_batch, pos_encoding_batch, mask_batch)
-                        logp = torch.gather(logp_list, 1, action_batch.squeeze(1)).unsqueeze(1)
-                        ratios = torch.exp(logp-old_logp.detach())
+                        logp_list, value, _, _ = dp_model(
+                            node_inputs_batch,
+                            edge_inputs_batch,
+                            budget_inputs_batch,
+                            current_inputs_batch,
+                            LSTM_h_batch,
+                            LSTM_c_batch,
+                            pos_encoding_batch,
+                            mask_batch,
+                        )
+                        logp = torch.gather(
+                            logp_list, 1, action_batch.squeeze(1)
+                        ).unsqueeze(1)
+                        ratios = torch.exp(logp - old_logp.detach())
                         surr1 = ratios * advantage.detach()
-                        surr2 = torch.clamp(ratios, 1-0.2, 1+0.2) * advantage.detach()
+                        surr2 = (
+                            torch.clamp(ratios, 1 - 0.2, 1 + 0.2) * advantage.detach()
+                        )
                         policy_loss = -torch.min(surr1, surr2)
                         policy_loss = policy_loss.mean()
 
@@ -214,12 +319,14 @@ def main():
 
                         entropy_loss = (logp_list * logp_list.exp()).sum(dim=-1).mean()
 
-                        loss = policy_loss + 0.5*value_loss + 0.0*entropy_loss
+                        loss = policy_loss + 0.5 * value_loss + 0.0 * entropy_loss
                     global_optimizer.zero_grad()
                     # loss.backward()
                     scaler.scale(loss).backward()
                     scaler.unscale_(global_optimizer)
-                    grad_norm = torch.nn.utils.clip_grad_norm_(global_network.parameters(), max_norm=10, norm_type=2)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(
+                        global_network.parameters(), max_norm=10, norm_type=2
+                    )
                     # global_optimizer.step()
                     scaler.step(global_optimizer)
                     scaler.update()
@@ -228,12 +335,20 @@ def main():
                 perf_data = []
                 for n in metric_name:
                     perf_data.append(np.nanmean(perf_metrics[n]))
-                data = [reward_batch.mean().item(), value_batch.mean().item(), policy_loss.item(), value_loss.item(),
-                        entropy.item(), grad_norm.item(), target_v_batch.mean().item(), *perf_data]
+                data = [
+                    reward_batch.mean().item(),
+                    value_batch.mean().item(),
+                    policy_loss.item(),
+                    value_loss.item(),
+                    entropy.item(),
+                    grad_norm.item(),
+                    target_v_batch.mean().item(),
+                    *perf_data,
+                ]
                 trainingData.append(data)
 
-                #experience_buffer = []
-                #for i in range(8):
+                # experience_buffer = []
+                # for i in range(8):
                 #    experience_buffer.append([])
 
             if len(trainingData) >= SUMMARY_WINDOW:
@@ -247,23 +362,28 @@ def main():
                     global_network.to(device)
                 else:
                     weights = global_network.state_dict()
-            
-            jobList = []                                                                                    
-            for i, meta_agent in enumerate(meta_agents):                                                    
-                jobList.append(meta_agent.job.remote(weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH))
-                curr_episode += 1 
-            
+
+            jobList = []
+            for i, meta_agent in enumerate(meta_agents):
+                jobList.append(
+                    meta_agent.job.remote(
+                        weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH
+                    )
+                )
+                curr_episode += 1
+
             if curr_episode % 32 == 0:
-                print('Saving model', end='\n')
-                checkpoint = {"model": global_network.state_dict(),
-                              "optimizer": global_optimizer.state_dict(),
-                              "episode": curr_episode,
-                              "lr_decay": lr_decay.state_dict()}
+                print("Saving model", end="\n")
+                checkpoint = {
+                    "model": global_network.state_dict(),
+                    "optimizer": global_optimizer.state_dict(),
+                    "episode": curr_episode,
+                    "lr_decay": lr_decay.state_dict(),
+                }
                 path_checkpoint = "./" + model_path + "/checkpoint.pth"
                 torch.save(checkpoint, path_checkpoint)
-                print('Saved model', end='\n')
-                    
-    
+                print("Saved model", end="\n")
+
     except KeyboardInterrupt:
         print("CTRL_C pressed. Killing remote workers")
         for a in meta_agents:

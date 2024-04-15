@@ -9,7 +9,7 @@ from sklearn.gaussian_process.kernels import Matern, RBF, ConstantKernel as C
 
 # from arguments import arg
 
-adaptive_kernel = False  # Automatically tune the kernel hyperparameters
+adaptive_kernel = True  # Automatically tune the kernel hyperparameters
 ADAPTIVE_TH = 0.5
 
 
@@ -123,6 +123,10 @@ class GaussianProcess:
             if y_pred[i] + beta * std[i] >= t:
                 high_measurement_area.append(x1x2[i])
         high_measurement_area = np.array(high_measurement_area)
+        if high_measurement_area.shape[0] == 0:
+            warnings.warn("No high information area found")
+            # print('y_pred is ', y_pred)
+        # print("----> number of elements in high_measurement_area: ", high_measurement_area.shape)
         return high_measurement_area
 
     def evaluate_KL_div(self, y_true, t=None, norm=True, base=None):

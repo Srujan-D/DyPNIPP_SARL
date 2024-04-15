@@ -144,12 +144,12 @@ class Worker:
 
             next_node_index = edge_inputs[:, current_index.item(), action_index.item()]
             route.append(next_node_index.item())
-            time1 = time.time()
+            # time1 = time.time()
             reward, done, node_info, node_std, remain_budget = self.env.step(
                 next_node_index.item(), self.sample_length
             )
-            time2 = time.time()
-            print(f"---------->time needed for step is {time2 - time1:.4f}")
+            # time2 = time.time()
+            # print(f"---------->time needed for step is {time2 - time1:.4f}")
             # if (not done and i==127):
             # reward += -np.linalg.norm(self.env.node_coords[self.env.current_node_index,:]-self.env.node_coords[0,:])
 

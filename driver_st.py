@@ -34,6 +34,20 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
     if plotMeans == True:
         tensorboardData = np.array(tensorboardData)
         tensorboardData = list(np.nanmean(tensorboardData, axis=0))
+        # metric_name = [
+        #     "avgrmse",
+        #     "avgunc",
+        #     "avgjsd",
+        #     "avgkld",
+        #     "stdunc",
+        #     "stdjsd",
+        #     "covtr",
+        #     "f1",
+        #     "mi",
+        #     "js",
+        #     "rmse",
+        #     "success_rate",
+        # ]
         metric_name = [
             "avgrmse",
             "avgunc",
@@ -41,46 +55,100 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
             "avgkld",
             "stdunc",
             "stdjsd",
-            "covtr",
+            "cov_trace",
             "f1",
             "mi",
             "js",
             "rmse",
+            # "scalex",
+            # "scaley",
+            # "scalet",
             "success_rate",
         ]
-        (
-            reward,
-            value,
-            policyLoss,
-            valueLoss,
-            entropy,
-            gradNorm,
-            returns,
-            remain_budget,
-            success_rate,
-            RMSE,
-            dct,
-            MI,
-            F1,
-            cov_tr,
-        ) = tensorboardData
+        try:
+            # print("number of lists in tensorboardData:", len(tensorboardData))
+            # for i, n in enumerate(metric_name):
+            #     print(f"list of metrics: {i} of length {len(n)}")
+            (
+                reward,
+                value,
+                policyLoss,
+                valueLoss,
+                entropy,
+                gradNorm,
+                returns,
+                # remain_budget,
+                avg_rmse,
+                avg_unc,
+                avg_jsd,
+                avg_kld,
+                std_unc,
+                std_jsd,
+                cov_tr,
+                F1,
+                MI,
+                JS,
+                RMSE,
+                scalex,
+                scaley,
+                scalet,
+                success_rate,
+            ) = tensorboardData
+        except:
+            print("number of lists in tensorboardData:", len(tensorboardData))
+            for i, n in enumerate(metric_name):
+                print(f"list of metrics: {i} of length {len(n)}")
+            (
+                reward,
+                value,
+                policyLoss,
+                valueLoss,
+                entropy,
+                gradNorm,
+                returns,
+                # remain_budget,
+                avg_rmse,
+                avg_unc,
+                avg_jsd,
+                avg_kld,
+                std_unc,
+                std_jsd,
+                cov_tr,
+                F1,
+                MI,
+                JS,
+                RMSE,
+                scalex,
+                scaley,
+                scalet,
+                success_rate,
+            ) = tensorboardData
     else:
         (
-            reward,
-            value,
-            policyLoss,
-            valueLoss,
-            entropy,
-            gradNorm,
-            returns,
-            remain_budget,
-            success_rate,
-            RMSE,
-            dct,
-            MI,
-            F1,
-            cov_tr,
-        ) = tensorboardData
+                reward,
+                value,
+                policyLoss,
+                valueLoss,
+                entropy,
+                gradNorm,
+                returns,
+                # remain_budget,
+                avg_rmse,
+                avg_unc,
+                avg_jsd,
+                avg_kld,
+                std_unc,
+                std_jsd,
+                cov_tr,
+                F1,
+                MI,
+                JS,
+                RMSE,
+                scalex,
+                scaley,
+                scalet,
+                success_rate,
+            ) = tensorboardData
 
     writer.add_scalar(tag="Losses/Value", scalar_value=value, global_step=curr_episode)
     writer.add_scalar(
@@ -99,19 +167,30 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
     writer.add_scalar(
         tag="Perf/Returns", scalar_value=returns, global_step=curr_episode
     )
-    writer.add_scalar(
-        tag="Perf/Remain Budget", scalar_value=remain_budget, global_step=curr_episode
-    )
+    # writer.add_scalar(
+    #     tag="Perf/Remain Budget", scalar_value=remain_budget, global_step=curr_episode
+    # )
     writer.add_scalar(
         tag="Perf/Success Rate", scalar_value=success_rate, global_step=curr_episode
     )
+    writer.add_scalar(tag="Perf/Avg RMSE", scalar_value=avg_rmse, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/Avg Uncertainty", scalar_value=avg_unc, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/Avg JSD", scalar_value=avg_jsd, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/Avg KLD", scalar_value=avg_kld, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/Std Uncertainty", scalar_value=std_unc, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/Std JSD", scalar_value=std_jsd, global_step=curr_episode)
+    writer.add_scalar(tag="Perf/JS", scalar_value=JS, global_step=curr_episode)
     writer.add_scalar(tag="Perf/RMSE", scalar_value=RMSE, global_step=curr_episode)
     writer.add_scalar(tag="Perf/F1 Score", scalar_value=F1, global_step=curr_episode)
     writer.add_scalar(tag="GP/MI", scalar_value=MI, global_step=curr_episode)
-    writer.add_scalar(
-        tag="GP/Delta Cov Trace", scalar_value=dct, global_step=curr_episode
-    )
+    writer.add_scalar(tag="GP/ScaleX", scalar_value=scalex, global_step=curr_episode)
+    writer.add_scalar(tag="GP/ScaleY", scalar_value=scaley, global_step=curr_episode)
+    writer.add_scalar(tag="GP/ScaleT", scalar_value=scalet, global_step=curr_episode)
+    # writer.add_scalar(
+    #     tag="GP/Delta Cov Trace", scalar_value=dct, global_step=curr_episode
+    # )
     writer.add_scalar(tag="GP/Cov Trace", scalar_value=cov_tr, global_step=curr_episode)
+
 
 
 def main():
@@ -154,7 +233,7 @@ def main():
     else:
         weights = global_network.state_dict()
 
-    breakpoint()
+    # breakpoint()
     # launch the first job on each runner
     dp_model = nn.DataParallel(global_network)
 
@@ -167,7 +246,6 @@ def main():
             )
         )
         curr_episode += 1
-        print("+++++++Starting episode", curr_episode, "on metaAgent", i)
     # metric_name = ['remain_budget', 'success_rate', 'RMSE', 'delta_cov_trace', 'MI', 'F1Score', 'cov_trace']
 
     metric_name = [
@@ -183,7 +261,9 @@ def main():
         "js",
         "rmse",
         "scalex",
+        "scaley",
         "scalet",
+        "success_rate",
     ]
     tensorboardData = []
     trainingData = []
@@ -193,7 +273,6 @@ def main():
 
     try:
         while True:
-            print("in infinite loop")
             # wait for any job to be completed
             done_id, jobList = ray.wait(jobList, num_returns=NUM_META_AGENT)
             # get the results
@@ -305,6 +384,7 @@ def main():
 
                 for i in range(8):
                     with autocast():
+                        # print("==calling global network==")
                         logp_list, value, _, _ = dp_model(
                             node_inputs_batch,
                             edge_inputs_batch,
@@ -315,6 +395,7 @@ def main():
                             pos_encoding_batch,
                             mask_batch,
                         )
+                        # print("==done calling global network==")
                         logp = torch.gather(
                             logp_list, 1, action_batch.squeeze(1)
                         ).unsqueeze(1)
@@ -369,9 +450,11 @@ def main():
                 #    experience_buffer.append([])
 
             if len(trainingData) >= SUMMARY_WINDOW:
-                print(trainingData)
+                # print(trainingData)
                 writeToTensorBoard(writer, trainingData, curr_episode)
                 trainingData = []
+            else:
+                print("trainingData length:", len(trainingData), "SUMMARY_WINDOW:", SUMMARY_WINDOW)
 
             # get the updated global weights
             if update_done == True:
