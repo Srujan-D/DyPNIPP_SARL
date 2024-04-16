@@ -141,9 +141,9 @@ class Worker:
                 # print('pos_encoding size is ', pos_encoding.size())
                 # print('mask size is ', mask.size())
                 # quit()
-                import pdb
-                pdb.set_trace()
-                print("bud get : ", budget_inputs)
+                # import pdb
+                # pdb.set_trace()
+                # print("bud get : ", budget_inputs)
                 
                 logp_list, value, LSTM_h, LSTM_c = self.local_net(
                     node_inputs,
@@ -245,6 +245,7 @@ class Worker:
                 self.env.plot(route, self.global_step, i, gifs_path)
 
             if done:
+                print("done with current node index ", self.env.current_node_index)
                 episode_buffer[6] = episode_buffer[4][1:]
                 episode_buffer[6].append(torch.FloatTensor([[0]]).to(self.device))
                 if self.env.current_node_index == 0:
@@ -304,9 +305,10 @@ class Worker:
                 # perf_metrics['covtr'] = self.env.cov_trace
                 perf_metrics["js"] = self.env.JS
                 perf_metrics["rmse"] = self.env.RMSE
-                perf_metrics["scalex"] = self.env.GPs[0].kernel.length_scale[0] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-                perf_metrics["scaley"] = self.env.GPs[0].kernel.length_scale[1] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
-                perf_metrics["scalet"] = self.env.GPs[0].kernel.length_scale[2] #3  # scale_t
+                perf_metrics["scalex"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[0] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+                perf_metrics["scaley"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[1] #0.1  # self.env.GPs.gp.kernel_.length_scale[0]
+                perf_metrics["scalet"] = self.env.gp_wrapper.GPs[0].kernel.length_scale[2] #3  # scale_t
+
                 perf_metrics["cov_trace"] = self.env.cov_trace
                 break
         if not done:

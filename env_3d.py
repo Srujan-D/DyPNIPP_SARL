@@ -290,9 +290,9 @@ class Env:
             self.dist_residual + remain_length if no_sample else remain_length
         )
         self.budget -= dist
-        # actual_t = self.curr_t + self.dist_residual
+        actual_t = self.curr_t + self.dist_residual
         # actual_budget = self.budget - self.dist_residual
-        actual_t = self.curr_t
+        # actual_t = self.curr_t
         actual_budget = self.budget
 
         # time1 = time.time()
@@ -355,7 +355,10 @@ class Env:
         self.unc_sum, self.unc_sum_list = unc_sum, unc_sum_list
         self.route += [next_node_index]
         self.current_node_index = next_node_index
-        done = True if actual_budget <= 0 else False
+        if not done and actual_budget <= 0.0005:
+            done = True
+        # done = True if actual_budget <= 0.0005 else False
+        # print("actual budget : ", actual_budget, self.current_node_index, done)
 
         return reward, done, self.node_feature, actual_budget
         # return reward, done, self.node_info, self.node_std, self.budget
