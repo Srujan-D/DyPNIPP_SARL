@@ -1,0 +1,13 @@
+gifs/
+__pycache__/
+.git/
+st_eval/result/
+s_eval/result/
+s_eval/__pycache__/
+st_eval/__pycache__/
+eval/__pycache__/
+eval/result/
+eval/r/
+s_eval/r/
+st_eval/r/
+wandb/
