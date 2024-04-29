@@ -389,7 +389,7 @@ class AttentionNet(nn.Module):
         self.current_embedding = nn.Linear(embedding_dim * 2, embedding_dim)
 
         # self.encoder = Encoder(embedding_dim=embedding_dim, n_head=4, n_layer=1)
-        self.encoder = MixerModel(d_model=embedding_dim, n_layer=4, device=device)
+        self.encoder = MixerModel(d_model=embedding_dim, n_layer=1, device=device)
         self.decoder = Decoder(embedding_dim=embedding_dim, n_head=4, n_layer=1)
         self.pointer = SingleHeadAttention(embedding_dim)
 

@@ -2,7 +2,7 @@ import torch
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.tensorboard import SummaryWriter
-import ray
+# import ray
 import os
 import numpy as np
 import wandb
@@ -68,8 +68,8 @@ class Logger:
             print(
                 f"cuda devices : {self.cuda_devices} on", torch.cuda.get_device_name()
             )
-        context = ray.init(num_cpus=NUM_META_AGENT)
-        print(context.dashboard_url)
+        # context = ray.init(num_cpus=NUM_META_AGENT)
+        # print(context.dashboard_url)
 
         if not os.path.exists(model_path):
             os.makedirs(model_path)
@@ -190,7 +190,8 @@ def main():
         curr_episode = logger.load_saved_model()
 
     # launch meta agents
-    meta_runners = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
+    # meta_runners = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
+    meta_runners = [RLRunner(i) for i in range(NUM_META_AGENT)]
 
     # launch the first job on each runner
     if use_wandb:
@@ -211,12 +212,22 @@ def main():
                 global_network.to(device)
             else:
                 weights = global_network.state_dict()
-            weights_id = ray.put(weights)
+            # weights_id = ray.put(weights)
 
             for i, meta_agent in enumerate(meta_runners):
+                # meta_jobs.append(
+                #     meta_agent.job.remote(
+                #         weights_id,
+                #         curr_episode,
+                #         BUDGET_RANGE,
+                #         sample_size=sample_size,
+                #         history_size=history_size,
+                #         target_size=target_size,
+                #     )
+                # )
                 meta_jobs.append(
-                    meta_agent.job.remote(
-                        weights_id,
+                    meta_agent.job(
+                        weights,
                         curr_episode,
                         BUDGET_RANGE,
                         sample_size=sample_size,
@@ -226,8 +237,10 @@ def main():
                 )
                 curr_episode += 1
 
-            done_id, meta_jobs = ray.wait(meta_jobs, num_returns=NUM_META_AGENT)
-            done_jobs = ray.get(done_id)
+            # done_id, meta_jobs = ray.wait(meta_jobs, num_returns=NUM_META_AGENT)
+            # done_jobs = ray.get(done_id)
+                
+            done_jobs = meta_jobs
             # random.shuffle(done_jobs)
             perf_metrics = {}
             for n in logger.metric_names:
@@ -338,8 +351,8 @@ def main():
         print("User interrupt, abort remotes...")
         if use_wandb:
             wandb.finish(quiet=True)
-        for runner in meta_runners:
-            ray.kill(runner)
+        # for runner in meta_runners:
+        #     ray.kill(runner)
 
 
 if __name__ == "__main__":

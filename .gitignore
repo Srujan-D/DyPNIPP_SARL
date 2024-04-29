@@ -11,3 +11,5 @@ eval/r/
 s_eval/r/
 st_eval/r/
 wandb/
+train/
+mprofile*.dat

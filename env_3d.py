@@ -16,7 +16,8 @@ from scipy.interpolate import griddata, RegularGridInterpolator, Rbf
 from numba import jit
 import time
 from scipy.ndimage import gaussian_filter
-from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
+# from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
+from fire_commander.binary_2d_fire import FireCommanderExtreme as Fire
 
 from utils.graph_controller import GraphController
 
