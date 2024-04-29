@@ -2,9 +2,10 @@ import torch
 import numpy as np
 import ray
 import os
-from attention_net import AttentionNet
+# from attention_net import AttentionNet
+from attention_net_st import AttentionNet
 # from worker import Worker
-from worker_st import Worker
+from worker_stamp import Worker
 from parameters import *
 
 
@@ -14,8 +15,8 @@ class Runner(object):
 
     def __init__(self, metaAgentID):
         self.metaAgentID = metaAgentID
-        self.device = torch.device(f'cuda:{CUDA_DEVICE[0]}') if USE_GPU else torch.device('cpu')
-        self.localNetwork = AttentionNet(INPUT_DIM, EMBEDDING_DIM)
+        self.device = torch.device('cuda') if USE_GPU else torch.device('cpu')
+        self.localNetwork = AttentionNet(EMBEDDING_DIM)
         self.localNetwork.to(self.device)
 
     def get_weights(self):
@@ -27,19 +28,19 @@ class Runner(object):
     def singleThreadedJob(self, episodeNumber, budget_range, sample_size, sample_length, history_size=None, target_size=None):
         save_img = True if (SAVE_IMG_GAP != 0 and episodeNumber % SAVE_IMG_GAP == 0) else False
         #save_img = False
-        worker = Worker(self.metaAgentID, self.localNetwork, episodeNumber, budget_range, sample_size, history_size, target_size, sample_length, self.device, save_image=save_img, greedy=False)
-        worker.work(episodeNumber)
+        worker = Worker(self.metaAgentID, self.localNetwork, episodeNumber, budget_range, sample_size, history_size, target_size, sample_length, self.device, greedy=False, save_image=save_img)
+        worker.run_episode(episodeNumber)
 
         jobResults = worker.experience
         perf_metrics = worker.perf_metrics
         return jobResults, perf_metrics
 
-    def job(self, global_weights, episodeNumber, budget_range, sample_size=SAMPLE_SIZE, sample_length=None):
+    def job(self, global_weights, episodeNumber, budget_range, sample_size=SAMPLE_SIZE, sample_length=None, history_size=None, target_size=None):
         print("starting episode {} on metaAgent {}".format(episodeNumber, self.metaAgentID))
         # set the local weights to the global weight values from the master network
         self.set_weights(global_weights)
 
-        jobResults, metrics = self.singleThreadedJob(episodeNumber, budget_range, sample_size, sample_length)
+        jobResults, metrics = self.singleThreadedJob(episodeNumber, budget_range, sample_size, sample_length, history_size, target_size)
 
         info = {
             "id": self.metaAgentID,

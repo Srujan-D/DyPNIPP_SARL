@@ -11,7 +11,8 @@ import time
 from multiprocessing import Pool
 import numpy as np
 import time
-from test_attention_net import AttentionNet
+# from test_attention_net import AttentionNet
+from test_attention_mamba import AttentionNet
 from test_runner import Runner
 
 # from test_worker import WorkerTest

@@ -11,20 +11,20 @@ ADAPTIVE_TH = 0.2
 
 USE_GPU = True
 USE_GPU_GLOBAL = True
-CUDA_DEVICE = [2]
+CUDA_DEVICE = [1]
 NUM_META_AGENT = 1 #32 #6
 LR = 1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
 SUMMARY_WINDOW = 8
-FOLDER_NAME = 'veg_mix_3'
+FOLDER_NAME = 'stamp_veg_1_10'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
 LOAD_MODEL = False
 SAVE_IMG_GAP = 250
 
-FIXED_ENV= 2 
+FIXED_ENV= 2
 
 HISTORY_SIZE = (50, 101)
 TARGET_SIZE = 1
@@ -37,6 +37,6 @@ GAE_LAMBDA = 0
 run_name = FOLDER_NAME
 BUFFER_SIZE = int(NUM_META_AGENT * EPISODE_STEPS)
 
-use_wandb = True
+use_wandb = False
 
 UPDATE_EPOCHS = 8

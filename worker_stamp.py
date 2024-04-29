@@ -19,7 +19,7 @@ class Worker:
         history_size=HISTORY_SIZE,
         target_size=TARGET_SIZE,
         sample_length=None,
-        device=f"cuda:{CUDA_DEVICE[0]}",
+        device="cuda",
         greedy=False,
         save_image=False,
     ):
@@ -156,9 +156,9 @@ class Worker:
                     self.global_step,
                     step,
                     gifs_path,
-                    budget_list,
-                    [0] + [r.item() for r in episode_buffer["reward"]],
-                    jsd_list,
+                    # budget_list,
+                    # [0] + [r.item() for r in episode_buffer["reward"]],
+                    # jsd_list,
                 )
 
             with torch.no_grad():
@@ -400,7 +400,7 @@ if __name__ == "__main__":
     if save_img:
         if not os.path.exists(gifs_path):
             os.makedirs(gifs_path)
-    device = torch.device(f"cuda:{CUDA_DEVICE[0]}")
+    device = torch.device("cuda")
     localNetwork = AttentionNet(INPUT_DIM, EMBEDDING_DIM).cuda()
     worker = Worker(
         0,

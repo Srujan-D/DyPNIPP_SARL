@@ -19,7 +19,7 @@ class Logger:
         self.net = None
         self.optimizer = None
         self.lr_scheduler = None
-        self.cuda_devices = str(CUDA_DEVICE)[1:-1]
+        self.cuda_devices = str(CUDA_DEVICE[0])
         self.writer = SummaryWriter(train_path)
         self.episode_buffer_keys = [
             "history",
@@ -68,7 +68,9 @@ class Logger:
             print(
                 f"cuda devices : {self.cuda_devices} on", torch.cuda.get_device_name()
             )
-        ray.init()
+        context = ray.init(num_cpus=NUM_META_AGENT)
+        print(context.dashboard_url)
+
         if not os.path.exists(model_path):
             os.makedirs(model_path)
         if not os.path.exists(gifs_path):
@@ -181,8 +183,8 @@ def main():
 
     curr_episode = 0
     training_data = []
-
-    wandb.init(name=FOLDER_NAME, project="st_catnipp")
+    if use_wandb:
+        wandb.init(name=FOLDER_NAME, project="st_catnipp")
 
     if LOAD_MODEL:
         curr_episode = logger.load_saved_model()
@@ -217,9 +219,9 @@ def main():
                         weights_id,
                         curr_episode,
                         BUDGET_RANGE,
-                        sample_size,
-                        history_size,
-                        target_size,
+                        sample_size=sample_size,
+                        history_size=history_size,
+                        target_size=target_size,
                     )
                 )
                 curr_episode += 1

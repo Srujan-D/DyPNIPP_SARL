@@ -255,7 +255,7 @@ class Decoder(nn.Module):
 
 
 class AttentionNet(nn.Module):
-    def __init__(self, input_dim, embedding_dim):
+    def __init__(self, input_dim, embedding_dim, device='cuda'):
         super(AttentionNet, self).__init__()
         self.initial_embedding = nn.Linear(
             input_dim, embedding_dim
