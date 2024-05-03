@@ -1,16 +1,20 @@
 import torch
 import numpy as np
-# import ray
+
+import ray
 import os
+
 # from attention_net import AttentionNet
 from attention_net_st import AttentionNet
+
 # from worker import Worker
 from worker_stamp import Worker
 from parameters import *
 
-from memory_profiler import profile
+# from memory_profiler import profile
 
-mem_logs = open('mem_profile.log','a')
+mem_logs = open("mem_profile.log", "a")
+
 
 class Runner(object):
     """Actor object to start running simulation on workers.
@@ -18,7 +22,7 @@ class Runner(object):
 
     def __init__(self, metaAgentID):
         self.metaAgentID = metaAgentID
-        self.device = torch.device('cuda') if USE_GPU else torch.device('cpu')
+        self.device = torch.device("cuda") if USE_GPU else torch.device("cpu")
         self.localNetwork = AttentionNet(EMBEDDING_DIM)
         self.localNetwork.to(self.device)
 
@@ -28,41 +32,87 @@ class Runner(object):
     def set_weights(self, weights):
         self.localNetwork.load_state_dict(weights)
 
-    def singleThreadedJob(self, episodeNumber, budget_range, sample_size, sample_length, history_size=None, target_size=None):
-        save_img = True if (SAVE_IMG_GAP != 0 and episodeNumber % SAVE_IMG_GAP == 0) else False
-        #save_img = False
-        worker = Worker(self.metaAgentID, self.localNetwork, episodeNumber, budget_range, sample_size, history_size, target_size, sample_length, self.device, greedy=False, save_image=save_img)
-        worker.run_episode(episodeNumber)
+    def singleThreadedJob(
+        self,
+        episodeNumber,
+        budget_range,
+        sample_size,
+        sample_length,
+        history_size=None,
+        target_size=None,
+    ):
+        save_img = (
+            True if (SAVE_IMG_GAP != 0 and episodeNumber % SAVE_IMG_GAP == 0) else False
+        )
+        # save_img = False
+        worker = Worker(
+            self.metaAgentID,
+            self.localNetwork,
+            episodeNumber,
+            budget_range,
+            sample_size,
+            history_size,
+            target_size,
+            sample_length,
+            self.device,
+            greedy=False,
+            save_image=save_img,
+        )
+        jobResults, perf_metrics = worker.run_episode(episodeNumber)
 
-        jobResults = worker.experience
-        perf_metrics = worker.perf_metrics
+        # jobResults = worker.experience
+        # perf_metrics = worker.perf_metrics
         return jobResults, perf_metrics
 
-    @profile(precision=4)
-    def job(self, global_weights, episodeNumber, budget_range, sample_size=SAMPLE_SIZE, sample_length=None, history_size=None, target_size=None):
-        print("starting episode {} on metaAgent {}".format(episodeNumber, self.metaAgentID))
+    # @profile(precision=4)
+    def job(
+        self,
+        global_weights,
+        episodeNumber,
+        budget_range,
+        sample_size=SAMPLE_SIZE,
+        sample_length=SAMPLE_LENGTH,
+        history_size=HISTORY_SIZE,
+        target_size=TARGET_SIZE,
+    ):
+        print(
+            "starting episode {} on metaAgent {}".format(
+                episodeNumber, self.metaAgentID
+            )
+        )
         # set the local weights to the global weight values from the master network
         self.set_weights(global_weights)
 
-        jobResults, metrics = self.singleThreadedJob(episodeNumber, budget_range, sample_size, sample_length, history_size, target_size)
+        jobResults, metrics = self.singleThreadedJob(
+            episodeNumber,
+            budget_range,
+            sample_size,
+            sample_length,
+            history_size,
+            target_size,
+        )
 
         info = {
             "id": self.metaAgentID,
             "episode_number": episodeNumber,
         }
-        print("finished episode {} on metaAgent {}".format(episodeNumber, self.metaAgentID))
+        print(
+            "finished episode {} on metaAgent {}".format(
+                episodeNumber, self.metaAgentID
+            )
+        )
         return jobResults, metrics, info
 
-  
-# @ray.remote(num_cpus=1, num_gpus=len(CUDA_DEVICE)/NUM_META_AGENT)
+
+@ray.remote(num_cpus=1, num_gpus=len(CUDA_DEVICE)/NUM_META_AGENT)
 class RLRunner(Runner):
-    def __init__(self, metaAgentID):        
+    def __init__(self, metaAgentID):
         super().__init__(metaAgentID)
 
 
-# if __name__=='__main__':
-#     ray.init()
-#     runner = RLRunner.remote(0)
-#     job_id = runner.singleThreadedJob.remote(1)
-#     out = ray.get(job_id)
-#     print(out[1])
+if __name__=='__main__':
+    ray.init()
+    runner = RLRunner.remote(0)
+    job_id = runner.singleThreadedJob.remote(1)
+    out = ray.get(job_id)
+    print(out[1])

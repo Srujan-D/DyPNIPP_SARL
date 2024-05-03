@@ -11,8 +11,8 @@ import random
 from torch.cuda.amp.grad_scaler import GradScaler
 from torch.cuda.amp.autocast_mode import autocast
 
-# from attention_net import AttentionNet
-from attention_mamba import AttentionNet
+from attention_net import AttentionNet
+# from attention_mamba import AttentionNet
 
 from runner import RLRunner
 from parameters import *

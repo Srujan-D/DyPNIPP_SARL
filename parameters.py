@@ -12,12 +12,12 @@ ADAPTIVE_TH = 0.2
 USE_GPU = True
 USE_GPU_GLOBAL = True
 CUDA_DEVICE = [1]
-NUM_META_AGENT = 1 #32 #6
+NUM_META_AGENT = 6 #32 #6
 LR = 1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
 SUMMARY_WINDOW = 8
-FOLDER_NAME = 'binary_mamba'
+FOLDER_NAME = 'testing_mem'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
@@ -29,7 +29,7 @@ FIXED_ENV= 2
 HISTORY_SIZE = (50, 101)
 TARGET_SIZE = 1
 HISTORY_STRIDE = 5
-EPISODE_STEPS = 256
+EPISODE_STEPS = 30
 
 #GAE --> taken from STAMP
 GAE_LAMBDA = 0

@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import ray
 import os
-# from attention_net import AttentionNet
-from attention_mamba import AttentionNet
+from attention_net import AttentionNet
+# from attention_mamba import AttentionNet
 
 # from worker import Worker
 from worker_st import Worker

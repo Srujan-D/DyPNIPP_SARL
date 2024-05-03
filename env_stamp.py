@@ -379,7 +379,7 @@ class Env:
         # return reward, done, self.node_info, self.node_std, self.budget
 
     @staticmethod
-    @jit(nopython=True, parallel=True, fastmath=True)
+    @jit(nopython=True, fastmath=True)
     def calc_fire_intensity_in_field(fire_map, world_size=100):
         field_intensity = np.zeros((world_size, world_size))
 
@@ -467,10 +467,13 @@ class Env:
         # plt.subplot(1,3,1)
         # plt.scatter(self.start[:,0], self.start[:,1], c='r', s=15)
         # plt.scatter(self.destination[:,0], self.destination[:,1], c='r', s=15)
-        if CMAES_route:
-            pointsToDisplay = route
-        else:
-            pointsToDisplay = [(self.graph_ctrl.find_point_from_node(path)) for path in route]
+        # if CMAES_route:
+        #     print("CMAES route")
+        #     pointsToDisplay = route
+        # else:
+            # print("Shortest path")
+        pointsToDisplay = [(self.graph_ctrl.find_point_from_node(path)) for path in route]
+            # print(pointsToDisplay)
         x = [item[0] for item in pointsToDisplay]
         y = [item[1] for item in pointsToDisplay]
         for i in range(len(x) - 1):
@@ -538,12 +541,12 @@ class Env:
         )
         plt.tight_layout()
         plt.savefig(
-            "{}/{}_{}_{}_samples.png".format(path, n, testID, step, self.sample_size),
+            "{}/{}_{}_samples.png".format(path, n, step, self.sample_size),
             dpi=150,
         )
         # plt.show()
-        frame = "{}/{}_{}_{}_samples.png".format(
-            path, n, testID, step, self.sample_size
+        frame = "{}/{}_{}_samples.png".format(
+            path, n, step, self.sample_size
         )
         self.frame_files.append(frame)
 

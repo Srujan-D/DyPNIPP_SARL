@@ -248,7 +248,7 @@ class Env:
         return reward, done, self.node_info, self.node_std, self.budget
 
     @staticmethod
-    @jit(nopython=True, parallel=True, fastmath=True)
+    @jit(nopython=True, fastmath=True)
     def calc_fire_intensity_in_field(fire_map, world_size=100):
         field_intensity = np.zeros((world_size, world_size))
 

@@ -27,7 +27,7 @@ Agent_Util = EnvUtilities()
 
 from scipy.ndimage import gaussian_filter
 
-from numba import jit
+from numba import jit, cuda
 
 
 # Full FireCommander Environment with Battery and Tanker Capacity Limitations
@@ -986,7 +986,7 @@ class FireCommanderExtreme(object):
     #     return field_intensity
 
     @staticmethod
-    @jit(nopython=True, parallel=True, fastmath=True)
+    @jit(nopython=True, fastmath=True)
     def calc_fire_intensity_in_field(fire_map, world_size=100):
         field_intensity = np.zeros((world_size, world_size))
 

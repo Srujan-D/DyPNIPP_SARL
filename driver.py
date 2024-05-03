@@ -14,7 +14,7 @@ from torch.cuda.amp.autocast_mode import autocast
 from attention_net import AttentionNet
 from runner import RLRunner
 from parameters import *
-import wandb
+# import wandb
 
 ray.init()
 print("Welcome to PRM-AN!")
@@ -110,25 +110,25 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
     writer.add_scalar(tag="GP/Cov Trace", scalar_value=cov_tr, global_step=curr_episode)
 
 
-    wandb.log(
-        {
-            "Losses/Value": value,
-            "Losses/Policy Loss": policyLoss,
-            "Losses/Value Loss": valueLoss,
-            "Losses/Entropy": entropy,
-            "Losses/Grad Norm": gradNorm,
-            "Perf/Reward": reward,
-            "Perf/Returns": returns,
-            "Perf/Remain Budget": remain_budget,
-            "Perf/Success Rate": success_rate,
-            "Perf/RMSE": RMSE,
-            "Perf/F1 Score": F1,
-            "GP/MI": MI,
-            "GP/Delta Cov Trace": dct,
-            "GP/Cov Trace": cov_tr,
-        },
-        step=curr_episode,
-    )
+    # wandb.log(
+    #     {
+    #         "Losses/Value": value,
+    #         "Losses/Policy Loss": policyLoss,
+    #         "Losses/Value Loss": valueLoss,
+    #         "Losses/Entropy": entropy,
+    #         "Losses/Grad Norm": gradNorm,
+    #         "Perf/Reward": reward,
+    #         "Perf/Returns": returns,
+    #         "Perf/Remain Budget": remain_budget,
+    #         "Perf/Success Rate": success_rate,
+    #         "Perf/RMSE": RMSE,
+    #         "Perf/F1 Score": F1,
+    #         "GP/MI": MI,
+    #         "GP/Delta Cov Trace": dct,
+    #         "GP/Cov Trace": cov_tr,
+    #     },
+    #     step=curr_episode,
+    # )
 
 def main():
     os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE)[1:-1]
@@ -144,10 +144,10 @@ def main():
     # Automatically logs gradients of pytorch model
     # wandb.watch(global_network, log_freq = SUMMARY_WINDOW)
 
-    wandb.init(
-        name=FOLDER_NAME,
-        project="2d_gp_catnipp",
-    )
+    # wandb.init(
+    #     name=FOLDER_NAME,
+    #     project="2d_gp_catnipp",
+    # )
 
     best_perf = 900
     curr_episode = 0

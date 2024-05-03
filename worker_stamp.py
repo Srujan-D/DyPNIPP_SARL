@@ -18,7 +18,7 @@ class Worker:
         sample_size=SAMPLE_SIZE,
         history_size=HISTORY_SIZE,
         target_size=TARGET_SIZE,
-        sample_length=None,
+        sample_length=SAMPLE_LENGTH,
         device="cuda",
         greedy=False,
         save_image=False,
@@ -178,8 +178,8 @@ class Worker:
                 action_index = torch.multinomial(logp_list.exp(), 1).long().squeeze(1)
             logp = torch.gather(logp_list, 1, action_index.unsqueeze(0))
             next_node_index = edge_inputs[:, current_index.item(), action_index.item()]
-            reward, done, node_feature, remain_budget, _ = self.env.step(
-                next_node_index.item(), self.global_step
+            reward, done, node_feature, remain_budget = self.env.step(
+                next_node_index.item(), self.sample_length
             )
 
             episode_buffer["history"] += history_pool_inputs
@@ -273,22 +273,22 @@ class Worker:
                 self.global_step,
                 step + 1,
                 gifs_path,
-                budget_list,
-                [0] + [r.item() for r in episode_buffer["reward"]],
-                jsd_list,
+                # budget_list,
+                # [0] + [r.item() for r in episode_buffer["reward"]],
+                # jsd_list,
             )
             self.make_gif(gifs_path, episode_number)
             self.save_image = False
-        n_visit = list(map(len, self.env.visit_t))
-        gap_visit = list(map(np.diff, self.env.visit_t))
-        perf_metrics["avgnvisit"] = np.mean(n_visit)
-        perf_metrics["stdnvisit"] = np.std(n_visit)
-        perf_metrics["avggapvisit"] = (
-            np.mean(list(map(np.mean, gap_visit))) if min(n_visit) > 1 else np.nan
-        )
-        perf_metrics["stdgapvisit"] = (
-            np.std(list(map(np.mean, gap_visit))) if min(n_visit) > 1 else np.nan
-        )
+        # n_visit = list(map(len, self.env.visit_t))
+        # gap_visit = list(map(np.diff, self.env.visit_t))
+        # perf_metrics["avgnvisit"] = np.mean(n_visit)
+        # perf_metrics["stdnvisit"] = np.std(n_visit)
+        # perf_metrics["avggapvisit"] = (
+        #     np.mean(list(map(np.mean, gap_visit))) if min(n_visit) > 1 else np.nan
+        # )
+        # perf_metrics["stdgapvisit"] = (
+        #     np.std(list(map(np.mean, gap_visit))) if min(n_visit) > 1 else np.nan
+        # )
         perf_metrics["avgrmse"] = np.mean(rmse_list)
         perf_metrics["avgunc"] = np.mean(unc_list)
         perf_metrics["avgjsd"] = np.mean(jsd_list)
@@ -382,14 +382,28 @@ class Worker:
             all_dist.append(dist_current_to_point)
         return np.asarray(all_dist).reshape(-1, 1)
 
+    # def make_gif(self, path, n):
+    #     with imageio.get_writer(
+    #         "{}/{}_cov_trace_{:.4g}.mp4".format(path, n, self.env.cov_trace), fps=5
+    #     ) as writer:
+    #         for frame in self.env.frame_files:
+    #             image = imageio.imread(frame)
+    #             writer.append_data(image)
+    #     print("gif complete\n")
+    #     # Remove files
+    #     for filename in self.env.frame_files[:-1]:
+    #         os.remove(filename)
     def make_gif(self, path, n):
         with imageio.get_writer(
-            "{}/{}_cov_trace_{:.4g}.mp4".format(path, n, self.env.cov_trace), fps=5
+            "{}/{}_cov_trace_{:.4g}.gif".format(path, n, self.env.cov_trace),
+            mode="I",
+            duration=2.5,
         ) as writer:
             for frame in self.env.frame_files:
                 image = imageio.imread(frame)
                 writer.append_data(image)
-        print("gif complete\n")
+        print("++++++++++++++++++++++++++++++++++++++++ gif complete\n")
+
         # Remove files
         for filename in self.env.frame_files[:-1]:
             os.remove(filename)

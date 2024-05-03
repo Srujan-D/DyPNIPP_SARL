@@ -9,8 +9,8 @@ import torch
 # from env_grid import Env
 # from env_fire import Env
 from env_3d import Env
-# from attention_net import AttentionNet
-from attention_mamba import AttentionNet
+from attention_net import AttentionNet
+# from attention_mamba import AttentionNet
 from parameters import *
 import scipy.signal as signal
 
