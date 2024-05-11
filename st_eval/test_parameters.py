@@ -3,7 +3,7 @@ EMBEDDING_DIM = 128
 USE_GPU = True
 USE_GPU_GLOBAL = True
 NUM_GPU = 1
-CUDA_DEVICE = [3] #[0, 1, 2, 3]
+CUDA_DEVICE = [4] #[0, 1, 2, 3]
 NUM_META_AGENT = 1
 
 # BUDGET_RANGE = (7.99999, 8) #(9.99999, 10)
@@ -82,7 +82,7 @@ FOLDER_NAME_ALL = []
 
 # print("test for : ", model_path)
 
-FOLDER_NAME = 'veg_mix_3'
+FOLDER_NAME = 'veg_1_10'
 model_path = f'../model/{FOLDER_NAME}'
 # model_path = 'result/veg_10'
 result_path = f'result/{FOLDER_NAME}'

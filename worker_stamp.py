@@ -241,9 +241,9 @@ class Worker:
                         self.global_step,
                         step + 1,
                         gifs_path,
-                        budget_list,
-                        [0] + [r.item() for r in episode_buffer["reward"]],
-                        jsd_list,
+                        # budget_list,
+                        # [0] + [r.item() for r in episode_buffer["reward"]],
+                        # jsd_list,
                     )
                     self.make_gif(gifs_path, episode_number)
                     self.save_image = False

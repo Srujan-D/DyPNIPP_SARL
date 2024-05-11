@@ -94,10 +94,10 @@ class Logger:
             returns,
             clipfrac,
             approx_kl,
-            avg_nvisit,
-            std_nvisit,
-            avg_visitgap,
-            std_visitgap,
+            # avg_nvisit,
+            # std_nvisit,
+            # avg_visitgap,
+            # std_visitgap,
             avg_RMSE,
             avg_unc,
             avg_JSD,
@@ -123,10 +123,10 @@ class Logger:
             "Loss/Approx Policy KL": approx_kl,
             "Loss/Reward": reward,
             "Loss/Return": returns,
-            "Perf/Average Visit Times": avg_nvisit,
-            "Perf/Stddev Visit Times": std_nvisit,
-            "Perf/Average Visit Gap": avg_visitgap,
-            "Perf/Stddev Visit Gap": std_visitgap,
+            # "Perf/Average Visit Times": avg_nvisit,
+            # "Perf/Stddev Visit Times": std_nvisit,
+            # "Perf/Average Visit Gap": avg_visitgap,
+            # "Perf/Stddev Visit Gap": std_visitgap,
             "Perf/Average JS Div": avg_JSD,
             "Perf/Average KL Div": avg_KLD,
             "Perf/Average RMSE": avg_RMSE,
@@ -239,19 +239,18 @@ def main():
 
             done_id, meta_jobs = ray.wait(meta_jobs, num_returns=NUM_META_AGENT)
             done_jobs = ray.get(done_id)
-                
-            done_jobs = meta_jobs
             # random.shuffle(done_jobs)
             perf_metrics = {}
             for n in logger.metric_names:
                 perf_metrics[n] = []
             for job in done_jobs:
-                job_results, metrics = job
+                job_results, metrics, info = job
                 for k in job_results.keys():
                     buffer[k] += job_results[k]
                 for n in logger.metric_names:
                     perf_metrics[n].append(metrics[n])
 
+            # print("buffer", buffer)
             b_history_inputs = torch.stack(buffer["history"], dim=0)
             b_edge_inputs = torch.stack(buffer["edge"], dim=0)
             b_dist_inputs = torch.stack(buffer["dist"], dim=0)

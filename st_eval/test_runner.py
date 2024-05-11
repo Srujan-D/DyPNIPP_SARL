@@ -2,8 +2,8 @@ import torch
 import numpy as np
 import ray
 import os
-# from test_attention_net import AttentionNet
-from test_attention_mamba import AttentionNet
+from test_attention_net import AttentionNet
+# from test_attention_mamba import AttentionNet
 
 # from test_worker import WorkerTest as Worker
 from test_worker_real import WorkerTestReal as Worker

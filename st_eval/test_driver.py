@@ -11,8 +11,8 @@ import time
 from multiprocessing import Pool
 import numpy as np
 import time
-# from test_attention_net import AttentionNet
-from test_attention_mamba import AttentionNet
+from test_attention_net import AttentionNet
+# from test_attention_mamba import AttentionNet
 from test_runner import Runner
 
 # from test_worker import WorkerTest
@@ -346,8 +346,9 @@ class RLRunner(Runner):
 
 
 if __name__ == "__main__":
+    # ray.init(num_cpus=NUM_META_AGENT)
     ray.init()
-
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
     device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
     local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
@@ -359,7 +360,7 @@ if __name__ == "__main__":
         global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
         checkpoint = torch.load(f"{model_path}/checkpoint.pth")
         result_path_ = result_path
-        for i in range(100):
+        for i in range(50):
             result_cumRMSE_, result_rmse_ = run_test(
                 seed=SEED + i,
                 global_network=global_network,

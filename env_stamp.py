@@ -282,7 +282,7 @@ class Env:
             ) = self.fire.env_step(r_func="RF4")
             # time2 = time.time()
             # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
-            reward += fire_reward
+            # reward += fire_reward
             # self.set_ground_truth(fire_map=interp_fire_intensity)
             self.set_momentum_GT(fire_map=interp_fire_intensity)
 
@@ -447,7 +447,7 @@ class Env:
     def set_momentum_GT(self, fire_map):
         ground_truth = Utils.compress_and_average(array=fire_map, new_shape=(30, 30))
         # new GT = 0.9 * old GT + 0.1 * new GT
-        self.ground_truth = 0.9 * self.ground_truth + 0.1 * ground_truth.reshape(-1)
+        self.ground_truth = 0.95 * self.ground_truth + 0.05 * ground_truth.reshape(-1)
         del ground_truth
 
     def get_high_info_idx(self):

@@ -360,11 +360,7 @@ class AttentionNet(nn.Module):
         connected_nodes_feature = torch.gather(
             embedding_feature, 1, current_edge.repeat(1, 1, embedding_dim)
         )
-
-        # print("=======budeget_inputs, ", budget_inputs.shape)
         connected_nodes_budget = torch.gather(budget_inputs, 1, current_edge)
-        # print(embedding_feature)
-        # print(connected_nodes_feature)
         current_node_feature = torch.gather(
             embedding_feature, 1, current_index.repeat(1, 1, embedding_dim)
         )
