@@ -370,7 +370,9 @@ class AttentionNet(nn.Module):
             embedding_feature, 1, current_index.repeat(1, 1, embedding_dim)
         )
         # input of LSTM is current_node_feature and next_belief
-        current_node_feature = torch.cat((current_node_feature, next_belief), dim=-1)
+        print('current node feature', current_node_feature.size())
+        print('next belief', next_belief.size())
+        current_node_feature = torch.cat((current_node_feature, next_belief.unsqueeze(0)), dim=-1)
         
         current_node_feature, (LSTM_h, LSTM_c) = self.LSTM(
             current_node_feature, (LSTM_h, LSTM_c)
@@ -498,7 +500,7 @@ class PredictNextBelief(nn.Module):
         )
 
     def forward(self, x):
-        batch_size = x.size(0)
+        batch_size = 1 #x.size(0)
         x = self.conv_encoder(x)
         x = x.view(batch_size, -1)
         x, _ = self.lstm(x.unsqueeze(1))

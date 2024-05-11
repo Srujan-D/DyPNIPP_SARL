@@ -27,7 +27,7 @@ class GaussianProcess:
                 kernel=self.kernel, optimizer="fmin_l_bfgs_b", n_restarts_optimizer=10
             )
         else:
-            self.kernel = Matern(length_scale=[0.1, 0.1, 10])
+            self.kernel = Matern(length_scale=[0.15, 0.15, 8])
             self.gp = GaussianProcessRegressor(
                 kernel=self.kernel, optimizer=None, n_restarts_optimizer=0
             )
@@ -322,6 +322,14 @@ class GaussianProcessWrapper:
     def update_grids(self):
         for gp in self.GPs:
             gp.update_grid(self.curr_t)
+    
+    def return_grid(self):
+        env_grid_mean = []
+        env_grid_std = []
+        for gp in self.GPs:
+            env_grid_mean.append(gp.y_pred_at_grid.reshape(self.env_size, self.env_size))
+            env_grid_std.append(gp.std_at_grid.reshape(self.env_size, self.env_size))
+        return env_grid_mean[0], env_grid_std[0]
 
     def eval_avg_RMSE(self, y_true, t, return_all=False):
         RMSE = []

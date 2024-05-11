@@ -14,7 +14,8 @@ from torch.cuda.amp.autocast_mode import autocast
 # from attention_net import AttentionNet
 from attention_net_robust import AttentionNet, PredictNextBelief, EncoderSimParams
 
-from runner import RLRunner
+# from runner import RLRunner
+from runner_robust import RLRunner
 from parameters import *
 import wandb
 import pprint
@@ -68,6 +69,7 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
                 gradNorm,
                 returns,
                 # remain_budget,
+                belief_loss,
                 avg_rmse,
                 avg_unc,
                 avg_jsd,
@@ -97,6 +99,7 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
                 gradNorm,
                 returns,
                 # remain_budget,
+                belief_loss,
                 avg_rmse,
                 avg_unc,
                 avg_jsd,
@@ -123,6 +126,7 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
             gradNorm,
             returns,
             # remain_budget,
+            belief_loss,
             avg_rmse,
             avg_unc,
             avg_jsd,
@@ -139,26 +143,27 @@ def writeToTensorBoard(writer, tensorboardData, curr_episode, plotMeans=True):
             scalet,
             success_rate,
         ) = tensorboardData
-
-    wandb.log({"Losses/Value": value}, step=curr_episode)
-    wandb.log({"Losses/Policy Loss": policyLoss}, step=curr_episode)
-    wandb.log({"Losses/Value Loss": valueLoss}, step=curr_episode)
-    wandb.log({"Losses/Entropy": entropy}, step=curr_episode)
-    wandb.log({"Losses/Grad Norm": gradNorm}, step=curr_episode)
-    wandb.log({"Perf/Reward": reward}, step=curr_episode)
-    wandb.log({"Perf/Returns": returns}, step=curr_episode)
-    wandb.log({"Perf/Success Rate": success_rate}, step=curr_episode)
-    wandb.log({"Perf/Avg RMSE": avg_rmse}, step=curr_episode)
-    wandb.log({"Perf/Avg Uncertainty": avg_unc}, step=curr_episode)
-    wandb.log({"Perf/Avg JSD": avg_jsd}, step=curr_episode)
-    wandb.log({"Perf/Avg KLD": avg_kld}, step=curr_episode)
-    wandb.log({"Perf/Std Uncertainty": std_unc}, step=curr_episode)
-    wandb.log({"Perf/Std JSD": std_jsd}, step=curr_episode)
-    wandb.log({"Perf/JS": JS}, step=curr_episode)
-    wandb.log({"Perf/RMSE": rmse}, step=curr_episode)
-    wandb.log({"Perf/F1 Score": F1}, step=curr_episode)
-    wandb.log({"GP/MI": MI}, step=curr_episode)
-    wandb.log({"GP/Cov Trace": cov_tr}, step=curr_episode)
+    if use_wandb:
+        wandb.log({"Losses/Value": value}, step=curr_episode)
+        wandb.log({"Losses/Policy Loss": policyLoss}, step=curr_episode)
+        wandb.log({"Losses/Value Loss": valueLoss}, step=curr_episode)
+        wandb.log({"Losses/Entropy": entropy}, step=curr_episode)
+        wandb.log({"Losses/Grad Norm": gradNorm}, step=curr_episode)
+        wandb.log({"Losses/Belief Loss": belief_loss}, step=curr_episode)
+        wandb.log({"Perf/Reward": reward}, step=curr_episode)
+        wandb.log({"Perf/Returns": returns}, step=curr_episode)
+        wandb.log({"Perf/Success Rate": success_rate}, step=curr_episode)
+        wandb.log({"Perf/Avg RMSE": avg_rmse}, step=curr_episode)
+        wandb.log({"Perf/Avg Uncertainty": avg_unc}, step=curr_episode)
+        wandb.log({"Perf/Avg JSD": avg_jsd}, step=curr_episode)
+        wandb.log({"Perf/Avg KLD": avg_kld}, step=curr_episode)
+        wandb.log({"Perf/Std Uncertainty": std_unc}, step=curr_episode)
+        wandb.log({"Perf/Std JSD": std_jsd}, step=curr_episode)
+        wandb.log({"Perf/JS": JS}, step=curr_episode)
+        wandb.log({"Perf/RMSE": rmse}, step=curr_episode)
+        wandb.log({"Perf/F1 Score": F1}, step=curr_episode)
+        wandb.log({"GP/MI": MI}, step=curr_episode)
+        wandb.log({"GP/Cov Trace": cov_tr}, step=curr_episode)
 
 
 def main():
@@ -188,10 +193,16 @@ def main():
     lr_decay = optim.lr_scheduler.StepLR(
         global_optimizer, step_size=DECAY_STEP, gamma=0.96
     )
+
+    belief_predictor = PredictNextBelief(device).to(device)
+    belief_optimizer = optim.Adam(belief_predictor.parameters(), lr=LR)
+    belief_lr_decay = optim.lr_scheduler.StepLR(
+        belief_optimizer, step_size=DECAY_STEP, gamma=0.96
+    )
     # Automatically logs gradients of pytorch model
     # wandb.watch(global_network, log_freq = SUMMARY_WINDOW)
-
-    wandb.init(name=FOLDER_NAME, project="st_catnipp")
+    if use_wandb:
+        wandb.init(name=FOLDER_NAME, project="st_catnipp")
 
     best_perf = 900
     curr_episode = 0
@@ -209,6 +220,11 @@ def main():
         print("best performance so far:", best_perf)
         print(global_optimizer.state_dict()["param_groups"][0]["lr"])
 
+        belief_checkpoint = torch.load(model_path + "/belief_checkpoint.pth")
+        belief_predictor.load_state_dict(belief_checkpoint["model"])
+        belief_optimizer.load_state_dict(belief_checkpoint["optimizer"])
+        belief_lr_decay.load_state_dict(belief_checkpoint["lr_decay"])
+
     # launch meta agents
     meta_agents = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
 
@@ -216,12 +232,17 @@ def main():
     if device != local_device:
         weights = global_network.to(local_device).state_dict()
         global_network.to(device)
+
+        belief_weights = belief_predictor.to(local_device).state_dict()
+        belief_predictor.to(device)
     else:
         weights = global_network.state_dict()
+        belief_weights = belief_predictor.state_dict()
 
     # breakpoint()
     # launch the first job on each runner
     dp_model = nn.DataParallel(global_network)
+    # belief_model = nn.DataParallel(belief_predictor)
 
     jobList = []
     sample_size = np.random.randint(200, 400)
@@ -266,6 +287,8 @@ def main():
         "LSTM_c",
         "mask",
         "pos_encoding",
+        "pred_next_belief",
+        "KL_diff_beliefs",
     ]
     tensorboardData = []
     trainingData = []
@@ -310,6 +333,15 @@ def main():
                 torch.save(checkpoint, path_checkpoint)
                 print("Saved model", end="\n")
 
+                belief_checkpoint = {
+                    "model": belief_predictor.state_dict(),
+                    "optimizer": belief_optimizer.state_dict(),
+                    "episode": curr_episode,
+                    "lr_decay": belief_lr_decay.state_dict(),
+                }
+                path_belief_checkpoint = "./" + model_path + "/belief_checkpoint.pth"
+                torch.save(belief_checkpoint, path_belief_checkpoint)
+
             update_done = False
             while len(experience_buffer["node_inputs"]) >= BATCH_SIZE:
                 rollouts = copy.deepcopy(experience_buffer)
@@ -346,6 +378,8 @@ def main():
                 LSTM_c_batch = torch.stack(rollouts["LSTM_c"])
                 mask_batch = torch.stack(rollouts["mask"])
                 pos_encoding_batch = torch.stack(rollouts["pos_encoding"])
+                pred_next_belief_batch = torch.stack(rollouts["pred_next_belief"])
+                KL_diff_beliefs_batch = torch.stack(rollouts["KL_diff_beliefs"])
 
                 if device != local_device:
                     node_inputs_batch = node_inputs_batch.to(device)
@@ -361,6 +395,8 @@ def main():
                     LSTM_c_batch = LSTM_c_batch.to(device)
                     mask_batch = mask_batch.to(device)
                     pos_encoding_batch = pos_encoding_batch.to(device)
+                    pred_next_belief_batch = pred_next_belief_batch.to(device)
+                    KL_diff_beliefs_batch = KL_diff_beliefs_batch.to(device)
 
                 # PPO
                 with torch.no_grad():
@@ -373,6 +409,7 @@ def main():
                         LSTM_c_batch,
                         pos_encoding_batch,
                         mask_batch,
+                        next_belief=pred_next_belief_batch,
                     )
                 old_logp = torch.gather(
                     logp_list, 1, action_batch.squeeze(1)
@@ -387,6 +424,7 @@ def main():
                 entropy = (logp_list * logp_list.exp()).sum(dim=-1).mean()
 
                 scaler = GradScaler()
+                belief_scaler = GradScaler()
 
                 for i in range(UPDATE_EPOCHS):
                     with autocast():
@@ -400,6 +438,7 @@ def main():
                             LSTM_c_batch,
                             pos_encoding_batch,
                             mask_batch,
+                            next_belief=pred_next_belief_batch,
                         )
                         # print("==done calling global network==")
                         logp = torch.gather(
@@ -424,6 +463,11 @@ def main():
                         entropy_loss = (logp_list * logp_list.exp()).sum(dim=-1).mean()
 
                         loss = policy_loss + 0.5 * value_loss + 0.0 * entropy_loss
+
+                        belief_loss = mse_loss(
+                            pred_next_belief_batch, KL_diff_beliefs_batch
+                        )
+
                     global_optimizer.zero_grad()
                     # loss.backward()
                     scaler.scale(loss).backward()
@@ -434,7 +478,15 @@ def main():
                     # global_optimizer.step()
                     scaler.step(global_optimizer)
                     scaler.update()
+
+                    belief_optimizer.zero_grad()
+                    belief_scaler.scale(belief_loss).backward()
+                    belief_scaler.unscale_(belief_optimizer)
+                    belief_optimizer.step()
+                    belief_scaler.update()
+
                 lr_decay.step()
+                belief_lr_decay.step()
 
                 perf_data = []
                 for n in metric_name:
@@ -447,6 +499,7 @@ def main():
                     entropy.item(),
                     grad_norm.item(),
                     target_v_batch.mean().item(),
+                    belief_loss.item(),
                     *perf_data,
                 ]
                 trainingData.append(data)
@@ -472,14 +525,23 @@ def main():
                 if device != local_device:
                     weights = global_network.to(local_device).state_dict()
                     global_network.to(device)
+
+                    belief_weights = belief_predictor.to(local_device).state_dict()
+                    belief_predictor.to(device)
                 else:
                     weights = global_network.state_dict()
+                    belief_weights = belief_predictor.state_dict()
 
             jobList = []
             for i, meta_agent in enumerate(meta_agents):
                 jobList.append(
                     meta_agent.job.remote(
-                        weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH
+                        weights,
+                        curr_episode,
+                        BUDGET_RANGE,
+                        sample_size,
+                        SAMPLE_LENGTH,
+                        belief_predictor_weights=belief_weights,
                     )
                 )
                 curr_episode += 1
@@ -496,10 +558,20 @@ def main():
                 }
                 path_checkpoint = "./" + model_path + "/checkpoint.pth"
                 torch.save(checkpoint, path_checkpoint)
+                belief_checkpoint = {
+                    "model": belief_predictor.state_dict(),
+                    "optimizer": belief_optimizer.state_dict(),
+                    "episode": curr_episode,
+                    "lr_decay": belief_lr_decay.state_dict(),
+                }
+                path_belief_checkpoint = "./" + model_path + "/belief_checkpoint.pth"
+                torch.save(belief_checkpoint, path_belief_checkpoint)
                 print("Saved model", end="\n")
 
     except KeyboardInterrupt:
         print("CTRL_C pressed. Killing remote workers")
+        if use_wandb:
+            wandb.finish(quiet=True)
         for a in meta_agents:
             ray.kill(a)
 

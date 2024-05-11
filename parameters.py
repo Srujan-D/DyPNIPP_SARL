@@ -16,8 +16,8 @@ NUM_META_AGENT = 6 #32 #6
 LR = 1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
-SUMMARY_WINDOW = 128
-FOLDER_NAME = 'stamp_nofire_reward'
+SUMMARY_WINDOW = 16
+FOLDER_NAME = 'robust_1'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
@@ -37,6 +37,6 @@ GAE_LAMBDA = 0
 run_name = FOLDER_NAME
 BUFFER_SIZE = int(NUM_META_AGENT * EPISODE_STEPS)
 
-use_wandb = True
+use_wandb = False
 
 UPDATE_EPOCHS = 8
