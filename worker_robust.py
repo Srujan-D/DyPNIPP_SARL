@@ -81,6 +81,9 @@ class Worker:
             "pos_encoding",
             "pred_next_belief",
             "KL_diff_beliefs",
+            "belief_lstm_h",
+            "belief_lstm_c",
+            "next_policy_feature",
         ]
 
     def run_episode(self, currEpisode):
@@ -146,6 +149,9 @@ class Worker:
         LSTM_h = torch.zeros((1, 1, EMBEDDING_DIM)).to(self.device)
         LSTM_c = torch.zeros((1, 1, EMBEDDING_DIM)).to(self.device)
 
+        belief_lstm_h = torch.zeros((1, 1, EMBEDDING_DIM)).to(self.device)
+        belief_lstm_c = torch.zeros((1, 1, EMBEDDING_DIM)).to(self.device)
+
         mask = torch.zeros((1, self.sample_size + 2, K_SIZE), dtype=torch.int64).to(
             self.device
         )
@@ -164,6 +170,8 @@ class Worker:
             episode_buffer["LSTM_c"] += LSTM_c
             episode_buffer["mask"] += mask
             episode_buffer["pos_encoding"] += pos_encoding
+            episode_buffer["belief_lstm_h"] += belief_lstm_h
+            episode_buffer["belief_lstm_c"] += belief_lstm_c
 
             with torch.no_grad():
                 # print('node input size is ', node_inputs.size())
@@ -178,12 +186,17 @@ class Worker:
 
                 # env_grid_0 = self.env.gp_wrapper.return_grid()
                 # change shape to 1, 30, 30
-                env_grid_mean0 = torch.Tensor(env_grid_mean0).unsqueeze(0).to(self.device)
-                env_grid_std0 = torch.Tensor(env_grid_std0).unsqueeze(0).to(self.device)
-        
-                print("node_inputs", env_grid_mean0.shape)
-                next_belief = self.belief_predictor(env_grid_mean0)
-                episode_buffer["pred_next_belief"] += next_belief
+                # env_grid_mean0 = torch.Tensor(env_grid_mean0).unsqueeze(0).to(self.device)
+                # env_grid_std0 = torch.Tensor(env_grid_std0).unsqueeze(0).to(self.device)
+
+                next_belief, belief_lstm_h, belief_lstm_c = self.belief_predictor(
+                    torch.Tensor(env_grid_mean0).unsqueeze(0).to(self.device),
+                    belief_lstm_h,
+                    belief_lstm_c,
+                )
+                episode_buffer["pred_next_belief"] += [next_belief]
+                next_policy_feature = self.belief_predictor.return_policy_feature()
+                episode_buffer["next_policy_feature"] += [next_policy_feature]
 
                 logp_list, value, LSTM_h, LSTM_c = self.local_net(
                     node_inputs,
@@ -195,7 +208,7 @@ class Worker:
                     pos_encoding,
                     mask,
                     i,
-                    next_belief=next_belief,
+                    next_belief=next_policy_feature,
                 )
             # next_node (1), logp_list (1, 10), value (1,1,1)
             if self.greedy:
@@ -227,18 +240,20 @@ class Worker:
             node_info, node_info_future = node_feature[:, :2], node_feature[:, 2:]
 
             env_grid_mean1, env_grid_std1 = self.env.gp_wrapper.return_grid()
-            env_grid_mean1 = torch.Tensor(env_grid_mean1).unsqueeze(0).to(self.device)
-            env_grid_std1 = torch.Tensor(env_grid_std1).unsqueeze(0).to(self.device)
-            
-            episode_buffer["KL_diff_beliefs"] += self.find_KL_GP(
-                env_grid_mean0, env_grid_std0, env_grid_mean1, env_grid_std1
-            )
+            # env_grid_mean1 = torch.Tensor(env_grid_mean1).unsqueeze(0).to(self.device)
+            # env_grid_std1 = torch.Tensor(env_grid_std1).unsqueeze(0).to(self.device)
+
+            episode_buffer["KL_diff_beliefs"] += [
+                self.find_KL_GP(
+                    env_grid_mean0, env_grid_std0, env_grid_mean1, env_grid_std1
+                )
+            ]
             env_grid_mean0, env_grid_std0 = env_grid_mean1, env_grid_std1
             # episode_buffer["KL_diff_beliefs"] += self.find_KL_GP(
             #     node_pred, node_std, node_info[:, 0], node_info[:, 1]
             # )
             # episode_buffer["KL_diff_beliefs"] += (node_info[:, 0] - node_pred)
-            print(">>> KL diff next belief = ", episode_buffer("KL_diff_beliefs"))
+            # print(">>> KL diff next belief = ", episode_buffer["KL_diff_beliefs"])
 
             node_pred, node_std = node_info[:, 0], node_info[:, 1]
             node_info = node_pred
@@ -302,7 +317,7 @@ class Worker:
 
             if done:
                 print("done with current node index ", self.env.current_node_index)
-                episode_buffer["value_prime"] = episode_buffer[4][1:]
+                episode_buffer["value_prime"] = episode_buffer["value"][1:]
                 episode_buffer["value_prime"].append(
                     torch.FloatTensor([[0]]).to(self.device)
                 )
@@ -346,7 +361,7 @@ class Worker:
                 perf_metrics["cov_trace"] = self.env.cov_trace
                 break
         if not done:
-            episode_buffer["value_prime"] = episode_buffer[4][1:]
+            episode_buffer["value_prime"] = episode_buffer["value"][1:]
             with torch.no_grad():
                 _, value, LSTM_h, LSTM_c = self.local_net(
                     node_inputs,
@@ -357,6 +372,7 @@ class Worker:
                     LSTM_c,
                     pos_encoding,
                     mask,
+                    next_belief=next_policy_feature,
                 )
             episode_buffer["value_prime"].append(value.squeeze(0))
             perf_metrics["remain_budget"] = remain_budget / budget
@@ -467,14 +483,22 @@ class Worker:
         """
         find KL divergence between two Gaussian processes
         """
-        return 0.5 * (
-            np.log(np.linalg.det(K2) / np.linalg.det(K1))
-            - mu1.shape[0]
-            + np.trace(np.matmul(np.linalg.inv(K2), K1))
-            + np.matmul(
-                np.matmul(np.transpose(mu2 - mu1), np.linalg.inv(K2)), mu2 - mu1
-            )
-        )
+        # try:
+        #     if np.linalg.det(K1) == 0 or np.linalg.det(K2) == 0:
+        #         return 1e6
+        #     else:
+        #         print("k2/k1", np.linalg.det(K2) / np.linalg.det(K1))
+        #         return 0.5 * (
+        #             np.log(np.linalg.det(K2) / np.linalg.det(K1))
+        #             - mu1.shape[0]
+        #             + np.trace(np.matmul(np.linalg.inv(K2), K1))
+        #             + np.matmul(
+        #                 np.matmul(np.transpose(mu2 - mu1), np.linalg.inv(K2)), mu2 - mu1
+        #             )
+        #         )
+        # except:
+        #     # in case coovariance has invalid entries, just return dist(mu1, mu2)
+        return torch.Tensor([np.linalg.norm(mu1 - mu2)]).to(self.device)
 
 
 if __name__ == "__main__":

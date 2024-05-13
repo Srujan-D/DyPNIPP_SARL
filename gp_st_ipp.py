@@ -27,7 +27,7 @@ class GaussianProcess:
                 kernel=self.kernel, optimizer="fmin_l_bfgs_b", n_restarts_optimizer=10
             )
         else:
-            self.kernel = Matern(length_scale=[0.15, 0.15, 8])
+            self.kernel = Matern(length_scale=[0.1, 0.1, 10])
             self.gp = GaussianProcessRegressor(
                 kernel=self.kernel, optimizer=None, n_restarts_optimizer=0
             )

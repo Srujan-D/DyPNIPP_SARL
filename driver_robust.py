@@ -289,12 +289,16 @@ def main():
         "pos_encoding",
         "pred_next_belief",
         "KL_diff_beliefs",
+        "belief_lstm_h",
+        "belief_lstm_c",
+        "next_policy_feature",
     ]
     tensorboardData = []
     trainingData = []
     experience_buffer = []
-    for i in range(13):
-        experience_buffer.append([])
+    # for i in range(13):
+    #     experience_buffer.append([])
+    experience_buffer = {k: [] for k in rollouts_keys}
 
     try:
         while True:
@@ -310,8 +314,8 @@ def main():
                 perf_metrics[n] = []
             for job in done_jobs:
                 jobResults, metrics, info = job
-                for i in range(13):
-                    experience_buffer[i] += jobResults[i]
+                for key in rollouts_keys:
+                    experience_buffer[key].extend(jobResults[key])
                 for n in metric_name:
                     # print("================metrics consist of:", metrics.keys())
                     perf_metrics[n].append(metrics[n])
@@ -344,6 +348,7 @@ def main():
 
             update_done = False
             while len(experience_buffer["node_inputs"]) >= BATCH_SIZE:
+                # print("Training on experience buffer")
                 rollouts = copy.deepcopy(experience_buffer)
                 for key in rollouts_keys:
                     rollouts[key] = rollouts[key][:BATCH_SIZE]
@@ -352,7 +357,7 @@ def main():
                 if len(experience_buffer["node_inputs"]) < BATCH_SIZE:
                     update_done = True
                 if update_done:
-                    episode_buffer = {k: [] for k in rollouts_keys}
+                    experience_buffer = {k: [] for k in rollouts_keys}
                     sample_size = np.random.randint(200, 400)
 
                 node_inputs_batch = torch.stack(
@@ -365,7 +370,7 @@ def main():
                     rollouts["current_index"], dim=0
                 )  # (batch,1,1)
                 action_batch = torch.stack(
-                    rollouts["axtion_index"], dim=0
+                    rollouts["action_index"], dim=0
                 )  # (batch,1,1)
                 value_batch = torch.stack(rollouts["value"], dim=0)  # (batch,1,1)
                 reward_batch = torch.stack(rollouts["reward"], dim=0)  # (batch,1,1)
@@ -373,13 +378,18 @@ def main():
                     rollouts["value_prime"], dim=0
                 )  # (batch,1,1)
                 target_v_batch = torch.stack(rollouts["target_v"])
-                budget_inputs_batch = torch.stack(rollouts["budget_input"], dim=0)
+                budget_inputs_batch = torch.stack(rollouts["budget_inputs"], dim=0)
                 LSTM_h_batch = torch.stack(rollouts["LSTM_h"])
                 LSTM_c_batch = torch.stack(rollouts["LSTM_c"])
                 mask_batch = torch.stack(rollouts["mask"])
                 pos_encoding_batch = torch.stack(rollouts["pos_encoding"])
                 pred_next_belief_batch = torch.stack(rollouts["pred_next_belief"])
                 KL_diff_beliefs_batch = torch.stack(rollouts["KL_diff_beliefs"])
+                belief_lstm_h_batch = torch.stack(rollouts["belief_lstm_h"])
+                belief_lstm_c_batch = torch.stack(rollouts["belief_lstm_c"])
+                next_policy_feature_batch = torch.stack(
+                    rollouts["next_policy_feature"]
+                ).squeeze(1)
 
                 if device != local_device:
                     node_inputs_batch = node_inputs_batch.to(device)
@@ -397,6 +407,9 @@ def main():
                     pos_encoding_batch = pos_encoding_batch.to(device)
                     pred_next_belief_batch = pred_next_belief_batch.to(device)
                     KL_diff_beliefs_batch = KL_diff_beliefs_batch.to(device)
+                    belief_lstm_h_batch = belief_lstm_h_batch.to(device)
+                    belief_lstm_c_batch = belief_lstm_c_batch.to(device)
+                    next_policy_feature_batch = next_policy_feature_batch.to(device)
 
                 # PPO
                 with torch.no_grad():
@@ -409,7 +422,7 @@ def main():
                         LSTM_c_batch,
                         pos_encoding_batch,
                         mask_batch,
-                        next_belief=pred_next_belief_batch,
+                        next_belief=next_policy_feature_batch,
                     )
                 old_logp = torch.gather(
                     logp_list, 1, action_batch.squeeze(1)
@@ -424,7 +437,7 @@ def main():
                 entropy = (logp_list * logp_list.exp()).sum(dim=-1).mean()
 
                 scaler = GradScaler()
-                belief_scaler = GradScaler()
+                # belief_scaler = GradScaler()
 
                 for i in range(UPDATE_EPOCHS):
                     with autocast():
@@ -438,7 +451,7 @@ def main():
                             LSTM_c_batch,
                             pos_encoding_batch,
                             mask_batch,
-                            next_belief=pred_next_belief_batch,
+                            next_belief=next_policy_feature_batch,
                         )
                         # print("==done calling global network==")
                         logp = torch.gather(
@@ -464,26 +477,42 @@ def main():
 
                         loss = policy_loss + 0.5 * value_loss + 0.0 * entropy_loss
 
+                        # print("calc belief loss")
+                        # print("pred_next_belief_batch:", pred_next_belief_batch.size())
+                        # print("KL_diff_beliefs_batch:", KL_diff_beliefs_batch.size())
                         belief_loss = mse_loss(
                             pred_next_belief_batch, KL_diff_beliefs_batch
                         )
+                        belief_loss.requires_grad = True
+                        # print("belief_loss:", belief_loss.item())
 
                     global_optimizer.zero_grad()
+                    # belief_optimizer.zero_grad()
                     # loss.backward()
                     scaler.scale(loss).backward()
+
+                    # scaler.scale(belief_loss).backward()
+                    
                     scaler.unscale_(global_optimizer)
+                    # scaler.unscale_(belief_optimizer)
+
                     grad_norm = torch.nn.utils.clip_grad_norm_(
                         global_network.parameters(), max_norm=10, norm_type=2
                     )
                     # global_optimizer.step()
                     scaler.step(global_optimizer)
+                    # scaler.step(belief_optimizer)
+
                     scaler.update()
 
                     belief_optimizer.zero_grad()
-                    belief_scaler.scale(belief_loss).backward()
-                    belief_scaler.unscale_(belief_optimizer)
+                    belief_loss.backward()
                     belief_optimizer.step()
-                    belief_scaler.update()
+
+                    # belief_scaler.scale(belief_loss).backward()
+                    # belief_scaler.unscale_(belief_optimizer)
+                    # belief_scaler.step(belief_optimizer)
+                    # belief_scaler.update()
 
                 lr_decay.step()
                 belief_lr_decay.step()

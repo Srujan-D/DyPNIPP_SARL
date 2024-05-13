@@ -10,6 +10,9 @@ eval/result/
 eval/r/
 s_eval/r/
 st_eval/r/
+robust_eval/r/
+robust_eval/__pycache__/
+robust_eval/result/
 wandb/
 train/
 mprofile*.dat

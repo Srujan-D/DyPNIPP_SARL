@@ -275,7 +275,7 @@ class AttentionNet(nn.Module):
         self.decoder = Decoder(embedding_dim=embedding_dim, n_head=4, n_layer=1)
         self.pointer = SingleHeadAttention(embedding_dim)
 
-        self.LSTM = nn.LSTM(embedding_dim, embedding_dim, batch_first=True)
+        self.LSTM = nn.LSTM(embedding_dim * 2, embedding_dim, batch_first=True)
 
     def graph_embedding(self, node_inputs, edge_inputs, pos_encoding, mask=None):
         # current_position (batch, 1, 2)
@@ -370,10 +370,16 @@ class AttentionNet(nn.Module):
             embedding_feature, 1, current_index.repeat(1, 1, embedding_dim)
         )
         # input of LSTM is current_node_feature and next_belief
-        print('current node feature', current_node_feature.size())
-        print('next belief', next_belief.size())
-        current_node_feature = torch.cat((current_node_feature, next_belief.unsqueeze(0)), dim=-1)
-        
+        try:
+            current_node_feature = torch.cat(
+                (current_node_feature, next_belief), dim=-1
+            )
+            # print('current node feature', current_node_feature.size())
+        except:
+            print("current node feature", current_node_feature.size())
+            print("next belief", next_belief.size())
+            quit()
+
         current_node_feature, (LSTM_h, LSTM_c) = self.LSTM(
             current_node_feature, (LSTM_h, LSTM_c)
         )
@@ -451,7 +457,7 @@ class AttentionNet(nn.Module):
                 LSTM_c,
                 mask,
                 i,
-                next_belief=next_belief
+                next_belief=next_belief,
             )
         return logp_list, value, LSTM_h, LSTM_c
 
@@ -471,8 +477,8 @@ class PredictNextBelief(nn.Module):
     def __init__(self, device="cuda"):
         super(PredictNextBelief, self).__init__()
         self.device = device
-        # self.conv encoder --> what features of GP to use? predicted mean, uncertainty, 
-                            # --> do we want to encode history (just regress GP over time) explicitly?
+        # self.conv encoder --> what features of GP to use? predicted mean, uncertainty,
+        # --> do we want to encode history (just regress GP over time) explicitly?
         # self.lstm layer
         # self.MLP layer
 
@@ -485,28 +491,33 @@ class PredictNextBelief(nn.Module):
             nn.MaxPool2d(kernel_size=(2, 2)),
         )
 
-        # self.conv_decoder = 
         self.lstm = nn.LSTM(
-            input_size=4*6*6,
-            hidden_size=64,
-            num_layers=1,
-            batch_first=True
+            input_size=4 * 6 * 6, hidden_size=128, num_layers=1, batch_first=True
         )
 
         self.MLP = nn.Sequential(
+            nn.Linear(128, 64),
+            nn.ReLU(),
             nn.Linear(64, 32),
             nn.ReLU(),
-            nn.Linear(32, 1)
+            nn.Linear(32, 1),
         )
 
-    def forward(self, x):
-        batch_size = 1 #x.size(0)
+        self.policy_feature = None
+
+    def forward(self, x, lstm_h=torch.zeros(1, 1, 128), lstm_c=torch.zeros(1, 1, 128)):
+        batch_size = 1  # x.size(0)
         x = self.conv_encoder(x)
         x = x.view(batch_size, -1)
-        x, _ = self.lstm(x.unsqueeze(1))
+        x, (lstm_h, lstm_c) = self.lstm(x.unsqueeze(1), (lstm_h, lstm_c))
         x = x[:, -1, :]
+        self.policy_feature = x
         x = self.MLP(x)
-        return x
+        return x.squeeze(1), lstm_h, lstm_c
+
+    def return_policy_feature(self):
+        # print("policy feature size", self.policy_feature.size(), self.policy_feature.unsqueeze(0).size())
+        return self.policy_feature.unsqueeze(0)
 
 
 class EncoderSimParams(nn.Module):
@@ -524,6 +535,7 @@ class EncoderSimParams(nn.Module):
     def forward(self, x):
         x = self.MLP(x)
         return x
+
 
 if __name__ == "__main__":
     model = AttentionNet(2, 8, greedy=True)

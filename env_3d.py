@@ -283,7 +283,7 @@ class Env:
             ) = self.fire.env_step(r_func="RF4")
             # time2 = time.time()
             # print(f">>> Time to FIRE env_step: {time2 - time1:.4f}")
-            reward += fire_reward
+            # reward += fire_reward
             # self.set_ground_truth(fire_map=interp_fire_intensity)
             self.set_momentum_GT(fire_map=interp_fire_intensity)
 
