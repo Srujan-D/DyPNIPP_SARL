@@ -3,7 +3,7 @@ EMBEDDING_DIM = 128
 USE_GPU = True
 USE_GPU_GLOBAL = True
 NUM_GPU = 1
-CUDA_DEVICE = [4] #[0, 1, 2, 3]
+CUDA_DEVICE = [1] #[0, 1, 2, 3]
 NUM_META_AGENT = 1
 
 # BUDGET_RANGE = (7.99999, 8) #(9.99999, 10)
@@ -40,39 +40,6 @@ FIXED_ENV= 2  # None 1 2 3
 
 
 FOLDER_NAME_ALL = []
-# FOLDER_NAME_ALL.append('ipp0.0_bud8_S1')
-# FOLDER_NAME_ALL.append('ipp0.0_bud8_S2')
-
-# FOLDER_NAME_ALL.append('ipp0.2_bud8_S1')
-# FOLDER_NAME_ALL.append('ipp0.6_bud8_S1')
-# FOLDER_NAME_ALL.append('ipp0.8_bud8_S1')
-
-# FOLDER_NAME_ALL.append('ipp0.8_bud8_S2')
-# FOLDER_NAME_ALL.append('ipp0.9_bud8_S0')
-# FOLDER_NAME_ALL.append('ipp0.9_bud8_S1')
-
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_S1')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_S2')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_S3')
-
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG5_S1')
-
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG6_S5')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG6_SG_S5')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG6_FG_S2')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG6_SG_FG_S2')
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG6_RG_S100')
-
-# FOLDER_NAME_ALL.append('ipp0.99_bud8_MG4_RG_S100')
-# FOLDER_NAME_ALL.append('ipp0.9_bud8_MG4_SPG3_S100')
-# FOLDER_NAME_ALL.append('ipp0.9_bud8_MG4_VT_S1')
-
-# FOLDER_NAME_ALL.append('ipp0.9_bud8_MG4_TO_S1')
-# # FOLDER_NAME_ALL.append('ipp0.9_bud8_MG4_SG_TO_S1')
-
-
-
-
 
 
 # model_path, result_path = [], []
@@ -82,7 +49,7 @@ FOLDER_NAME_ALL = []
 
 # print("test for : ", model_path)
 
-FOLDER_NAME = 'robust_1'
+FOLDER_NAME = 'robust_curriculum_manual' #'robust_lambda100' #'robust_lambda100_fuel1_5_10' #'robust_curriculum_manual' #'robust_wo_training_robust' #
 model_path = f'../model/{FOLDER_NAME}'
 # model_path = 'result/veg_10'
 result_path = f'result/{FOLDER_NAME}'
@@ -109,3 +76,5 @@ K_SIZE = 20
 SAMPLE_LENGTH = 0.1 # 0/None: sample at nodes
 ADAPTIVE_AREA = True
 ADAPTIVE_TH = 0.2
+
+BELIEF_EMBEDDING_DIM = 128

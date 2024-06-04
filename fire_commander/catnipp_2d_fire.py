@@ -42,6 +42,7 @@ class FireCommanderExtreme(object):
         online_vis=False,
         start=None,
         seed=None,
+        fuel=None,
     ):
         
         if seed is not None:
@@ -52,7 +53,7 @@ class FireCommanderExtreme(object):
         self.world_size = 30 if world_size is None else world_size  # world size
         self.duration = 200 if duration is None else duration  # numbr of steps per game
         self.fireAreas_Num = (
-            2 if fireAreas_Num is None else fireAreas_Num
+            1 if fireAreas_Num is None else fireAreas_Num
         )  # number of fire areas
         self.perception_agent_num = (
             1 if P_agent_num is None else P_agent_num
@@ -65,8 +66,12 @@ class FireCommanderExtreme(object):
         areas_x = np.random.randint(5, self.world_size - 5, self.fireAreas_Num)
         areas_y = np.random.randint(5, self.world_size - 5, self.fireAreas_Num)
         area_delays = [0] * self.fireAreas_Num
-        fuel = 10
-        # fuel = np.random.randint(1, 10)
+        if fuel is None:
+            # fuel = 5
+            fuel = np.random.randint(1, 11)
+            # fuel = np.random.choice([1, 5, 10])
+        # else:
+        #     print(">>> Fuel: ", fuel)
         area_fuel_coeffs = [fuel] * self.fireAreas_Num
         area_wind_speed = [5] * self.fireAreas_Num
         area_wind_directions = []
@@ -76,7 +81,7 @@ class FireCommanderExtreme(object):
         self.interp_fire_intensity = None
 
         # agent starting position
-        print(start)
+        # print(start)
         self.start = [
             int((start[0] + 1) * self.world_size / 2),
             int((start[1] + 1) * self.world_size / 2),
@@ -104,6 +109,8 @@ class FireCommanderExtreme(object):
 
         # the number of stacked frames for training
         self.stack_num = 4
+
+        self.fire_params = [fuel, area_wind_speed[0], area_wind_directions[0]]
 
         # # initialize the pygame for online visualization
         # if online_vis:

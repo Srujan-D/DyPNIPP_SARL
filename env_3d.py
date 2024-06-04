@@ -17,9 +17,11 @@ from numba import jit
 import time
 from scipy.ndimage import gaussian_filter
 from fire_commander.catnipp_2d_fire import FireCommanderExtreme as Fire
+
 # from fire_commander.binary_2d_fire import FireCommanderExtreme as Fire
 
 from utils.graph_controller import GraphController
+
 
 def add_t(X, t: float):
     return np.concatenate((X, np.zeros((X.shape[0], 1)) + t), axis=1)
@@ -38,8 +40,9 @@ class Env:
         seed=None,
         fixed_env=None,
         adaptive_th=None,
-        adaptive_area=False,
+        adaptive_area=True,
         n_agents=1,
+        fuel=None,
     ):
         self.ADAPTIVE_TH = adaptive_th
         self.ADAPTIVE_AREA = adaptive_area
@@ -64,9 +67,14 @@ class Env:
         self.curr_t = 0.0
         self.n_agents = 1
         self.env_size = 30
+        self.fuel = fuel
         # # generate Fire environment
         self.fire = Fire(
-            world_size=self.env_size, online_vis=True, start=self.start[0], seed=seed
+            world_size=self.env_size,
+            online_vis=True,
+            start=self.start[0],
+            seed=seed,
+            fuel=self.fuel,
         )
         self.fire.env_init()
 
@@ -126,6 +134,8 @@ class Env:
         self.save_image = save_image
         self.frame_files = []
 
+        self.env_sim_params = self.fire.fire_params
+
     def reset(self, seed=None):
         # generate PRM
         # self.start = np.random.rand(1, 2)
@@ -146,6 +156,7 @@ class Env:
             online_vis=True,
             start=self.start[0],
             seed=seed if seed else self.seed,
+            fuel=self.fuel,
         )
         self.fire.env_init()
 
@@ -547,6 +558,63 @@ class Env:
             path, n, testID, step, self.sample_size
         )
         self.frame_files.append(frame)
+
+        plt.close()
+
+    def route_step(self, route, sample_length, measurement=True):
+        current_node = route[0]
+        # print(route, route[1:], route[0])
+        for next_node in route[1:]:
+            dist = np.linalg.norm(current_node - next_node)
+            remain_length = dist
+            next_length = sample_length - self.dist_residual
+            no_sample = True
+            while remain_length > next_length:
+                if no_sample:
+                    self.sample = (
+                        next_node - current_node
+                    ) * next_length / dist + current_node
+                else:
+                    self.sample = (
+                        next_node - current_node
+                    ) * next_length / dist + self.sample
+                observed_value = self.underlying_distribution.return_fire_at_location(
+                    self.sample.reshape(-1, 2)[0]
+                )  # + np.random.normal(0, 1e-10)
+                self.curr_t += next_length
+                for i in range(self.n_agents):
+                    # print('inside loop adding obs points', self.sample)
+                    # print('self.sample: ', self.sample)
+                    # print('reshape: ', self.sample.reshape(-1, 2))
+                    self.gp_wrapper.GPs[i].add_observed_point(
+                        add_t(self.sample.reshape(-1, 2), self.curr_t), observed_value
+                    )
+                remain_length -= next_length
+                next_length = sample_length
+                no_sample = False
+
+            self.dist_residual = (
+                self.dist_residual + remain_length if no_sample else remain_length
+            )
+            self.dist_residual_tmp = self.dist_residual
+            if measurement:
+                self.budget -= dist
+            current_node = next_node
+
+        self.gp_wrapper.update_gps()
+
+        if measurement:
+            # self.high_info_area = (
+            #     self.gp_wrapper.get_high_info_area(self.curr_t, adaptive_t=self.ADAPTIVE_TH) if self.ADAPTIVE_AREA else None
+            # )
+            cov_trace = self.gp_wrapper.eval_avg_cov_trace(self.curr_t, self.get_high_info_idx())
+            self.cov_trace = cov_trace
+        else:
+            cov_trace = self.gp_wrapper.eval_avg_cov_trace(self.curr_t, self.get_high_info_idx())
+
+        rmse = self.gp_wrapper.eval_avg_RMSE(self.ground_truth, self.curr_t)
+
+        return cov_trace, rmse
 
 
 if __name__ == "__main__":

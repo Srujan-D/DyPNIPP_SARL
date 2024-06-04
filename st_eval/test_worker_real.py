@@ -13,6 +13,7 @@ sys.path.append("/data/srujan/research/catnipp")
 # from env_grid import Env
 # from env_fire import Env
 from env_3d import Env
+# from env_3d_3fires import Env
 
 # from attention_net import AttentionNet
 import scipy.signal as signal
@@ -61,6 +62,7 @@ class WorkerTestReal:
             adaptive_th=ADAPTIVE_TH,
             adaptive_area=ADAPTIVE_AREA,
             n_agents=self.n_agents,
+            fuel=1,
         )  # , env_size=30)
 
         self.local_net = localNetwork

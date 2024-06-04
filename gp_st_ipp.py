@@ -46,6 +46,8 @@ class GaussianProcess:
         self.observed_value.append(value)
 
     def update_gp(self):
+        if not self.observed_points:
+            return
         scale_t = (
             self.gp.kernel_.length_scale[-1]
             if hasattr(self.gp, "kernel_")
@@ -55,6 +57,7 @@ class GaussianProcess:
         curr_t = self.observed_points[-1][0][-1]
         mask_idx = []
         for i, ob in enumerate(self.observed_points):
+            # print(curr_t, ob[0][-1], dt)
             if curr_t - ob[0][-1] < dt:
                 mask_idx.append(i)
         if self.observed_points:
@@ -201,7 +204,7 @@ class GaussianProcess:
     #         plt.gca().add_patch(fov)
     #     return y_pred
 
-    def plot(self, y_true, curr_t=0):
+    def plot(self, y_true, curr_t=0, attention_weights=None):
         y_pred, std = self.gp.predict(add_t(self.grid, curr_t), return_std=True)
 
         X0p, X1p = self.grid[:, 0].reshape(self.env_size, self.env_size), self.grid[
@@ -276,8 +279,12 @@ class GaussianProcessWrapper:
             gp.add_observed_point(all_point_pos[i].reshape(-1, 3), 1.0)
 
     def add_observed_points(self, point_pos, values):  # value: (1, n)
-        for i, gp in enumerate(self.GPs):
-            gp.add_observed_point(point_pos, values[0, i])
+        try:
+            for i, gp in enumerate(self.GPs):
+                gp.add_observed_point(point_pos, values[0, i])
+        except:
+            for i, gp in enumerate(self.GPs):
+                gp.add_observed_point(point_pos, values)
 
     def update_gps(self):
         for gp in self.GPs:
@@ -417,9 +424,9 @@ class GaussianProcessWrapper:
             high_info_area += [gp.get_high_info_area(curr_t=curr_t, t=adaptive_t)]
         return high_info_area
 
-    def plot(self, y_true, curr_t=0):
+    def plot(self, y_true, curr_t=0, attention_weights=None):
         for gp in self.GPs:
-            gp.plot(y_true, curr_t)
+            gp.plot(y_true, curr_t, attention_weights)
 
 
 if __name__ == "__main__":

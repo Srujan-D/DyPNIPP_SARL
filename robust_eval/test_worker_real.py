@@ -10,7 +10,8 @@ import sys
 # sys.path.append('..')
 sys.path.append("/data/srujan/research/catnipp")
 
-from env_3d import Env
+# from env_fire_testing import Env
+from env_fire_testing_temp import Env
 
 # from attention_net import AttentionNet
 import scipy.signal as signal
@@ -158,6 +159,7 @@ class WorkerTestReal:
                     torch.Tensor(env_grid_mean0).unsqueeze(0).to(self.device),
                     belief_lstm_h,
                     belief_lstm_c,
+                    self.env.fire.fuel,
                 )
                 next_policy_feature = self.belief_predictor.return_policy_feature()
 
@@ -241,6 +243,7 @@ class WorkerTestReal:
             if self.save_image:
                 if not os.path.exists(result_path):
                     os.makedirs(result_path)
+                # attention_weights = self.local_net.return_attention_weights()
                 self.env.plot(route, self.global_step, i, result_path, testID)
 
             if done:
@@ -286,7 +289,11 @@ class WorkerTestReal:
                 perf_metrics["belief_loss_mean"] = np.mean(belief_loss_list)
                 perf_metrics["belief_loss_std"] = np.std(belief_loss_list)
                 perf_metrics["belief_loss_total"] = np.sum(belief_loss_list)
+                perf_metrics["belief_loss_list"] = belief_loss_list
                 break
+                
+            # self.belief_predictor.save_policy_feature(self.env.fire.fuel, seed=self.seed-100*global_step)
+        self.belief_predictor.save_policy_feature(self.env.fire.fuel)
         self.env.fire.env_close()
         # print("route is ", route)
         # save gif

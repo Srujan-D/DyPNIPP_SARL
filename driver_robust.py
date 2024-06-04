@@ -222,8 +222,8 @@ def main():
 
         belief_checkpoint = torch.load(model_path + "/belief_checkpoint.pth")
         belief_predictor.load_state_dict(belief_checkpoint["model"])
-        belief_optimizer.load_state_dict(belief_checkpoint["optimizer"])
-        belief_lr_decay.load_state_dict(belief_checkpoint["lr_decay"])
+        global_optimizer.load_state_dict(belief_checkpoint["optimizer"])
+        lr_decay.load_state_dict(belief_checkpoint["lr_decay"])
 
     # launch meta agents
     meta_agents = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
@@ -339,9 +339,9 @@ def main():
 
                 belief_checkpoint = {
                     "model": belief_predictor.state_dict(),
-                    "optimizer": belief_optimizer.state_dict(),
+                    "optimizer": global_optimizer.state_dict(),
                     "episode": curr_episode,
-                    "lr_decay": belief_lr_decay.state_dict(),
+                    "lr_decay": lr_decay.state_dict(),
                 }
                 path_belief_checkpoint = "./" + model_path + "/belief_checkpoint.pth"
                 torch.save(belief_checkpoint, path_belief_checkpoint)
@@ -480,10 +480,12 @@ def main():
                         # print("calc belief loss")
                         # print("pred_next_belief_batch:", pred_next_belief_batch.size())
                         # print("KL_diff_beliefs_batch:", KL_diff_beliefs_batch.size())
+                        
                         belief_loss = mse_loss(
                             pred_next_belief_batch, KL_diff_beliefs_batch
-                        )
+                        ) * 100.0
                         belief_loss.requires_grad = True
+                        
                         # print("belief_loss:", belief_loss.item())
 
                     global_optimizer.zero_grad()
@@ -529,6 +531,7 @@ def main():
                     grad_norm.item(),
                     target_v_batch.mean().item(),
                     belief_loss.item(),
+                    # np.zeros_like(target_v_batch.mean().item()),
                     *perf_data,
                 ]
                 trainingData.append(data)
@@ -589,9 +592,9 @@ def main():
                 torch.save(checkpoint, path_checkpoint)
                 belief_checkpoint = {
                     "model": belief_predictor.state_dict(),
-                    "optimizer": belief_optimizer.state_dict(),
+                    "optimizer": global_optimizer.state_dict(),
                     "episode": curr_episode,
-                    "lr_decay": belief_lr_decay.state_dict(),
+                    "lr_decay": lr_decay.state_dict(),
                 }
                 path_belief_checkpoint = "./" + model_path + "/belief_checkpoint.pth"
                 torch.save(belief_checkpoint, path_belief_checkpoint)

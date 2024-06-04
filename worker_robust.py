@@ -48,6 +48,84 @@ class Worker:
         self.sample_size = sample_size
         self.n_agents = 1
 
+        # fuel_map_episode = [
+        #     1,                              # 0 - 1000
+        #     2,                              # 1000 - 2000
+        #     3,                              # 2000 - 3000
+        #     np.random.choice([1, 2, 3]),    # 3000 - 4000
+        #     4,                              # 4000 - 5000
+        #     5,                              # 5000 - 6000
+        #     6,                              # 6000 - 7000
+        #     np.random.choice([4, 5, 6]),    # 7000 - 8000
+        #     np.random.randint(1, 7),        # 8000 - 9000
+        #     8,                              # 9000 - 10000
+        #     9,                              # 10000 - 11000
+        #     10,                             # 11000 - 12000
+        #     np.random.choice([8, 9, 10]),   # 12000 - 13000
+        #     np.random.randint(4, 11),       # 13000 - 14000
+        #     np.random.randint(1, 11),       # 14000 - 15000
+        # ]
+        # index_map = global_step // 1000
+        # if index_map >= len(fuel_map_episode):
+        #     index_map = len(fuel_map_episode) - 1
+
+        # print(">>> fuel map episode is ", index_map, fuel_map_episode[index_map])
+        # # after every 1000 episodes, the fuel map is changed
+        # # if global_step % 1000 == 0:
+        # self.env = Env(
+        #     sample_size=self.sample_size,
+        #     k_size=K_SIZE,
+        #     budget_range=budget_range,
+        #     save_image=self.save_image,
+        #     adaptive_th=ADAPTIVE_TH,
+        #     adaptive_area=ADAPTIVE_AREA,
+        #     n_agents=self.n_agents,
+        #     fuel=fuel_map_episode[index_map],
+        # )
+
+        fuel_map_episode = [
+            1,
+            2,
+            3,
+            np.random.choice([1, 2, 3]),
+            4,
+            5,
+            6,
+            np.random.choice([4, 5, 6]),
+            np.random.randint(1, 7),
+            8,
+            9,
+            10,
+            np.random.choice([8, 9, 10]),
+            np.random.randint(4, 11),
+            np.random.randint(1, 11),
+        ]
+        
+        index_map = [
+            600,
+            1200,
+            1800,
+            2500,
+            3100,
+            3700,
+            4500,
+            5100,
+            5700,
+            6300,
+            7000,
+            7600,
+            8500,
+            9100,
+        ]
+
+        index = fuel_map_episode[np.sum(global_step >= index_map)]
+
+        # if index_map >= len(fuel_map_episode):
+        #     index_map = len(fuel_map_episode) - 1
+
+        print(">>> fuel map episode is ", global_step, fuel_map_episode[index])
+        # after every 1000 episodes, the fuel map is changed
+        # if global_step % 1000 == 0:
         self.env = Env(
             sample_size=self.sample_size,
             k_size=K_SIZE,
@@ -56,7 +134,18 @@ class Worker:
             adaptive_th=ADAPTIVE_TH,
             adaptive_area=ADAPTIVE_AREA,
             n_agents=self.n_agents,
+            fuel=fuel_map_episode[index],
         )
+
+        # self.env = Env(
+        #     sample_size=self.sample_size,
+        #     k_size=K_SIZE,
+        #     budget_range=budget_range,
+        #     save_image=self.save_image,
+        #     adaptive_th=ADAPTIVE_TH,
+        #     adaptive_area=ADAPTIVE_AREA,
+        #     n_agents=self.n_agents,
+        # )
         # self.local_net = AttentionNet(2, 128, device=self.device)
         # self.local_net.to(device)
         self.local_net = localNetwork
@@ -84,6 +173,7 @@ class Worker:
             "belief_lstm_h",
             "belief_lstm_c",
             "next_policy_feature",
+            "env_sim_params",
         ]
 
     def run_episode(self, currEpisode):
@@ -197,6 +287,10 @@ class Worker:
                 episode_buffer["pred_next_belief"] += [next_belief]
                 next_policy_feature = self.belief_predictor.return_policy_feature()
                 episode_buffer["next_policy_feature"] += [next_policy_feature]
+
+                episode_buffer["env_sim_params"] += [
+                    torch.Tensor(self.env.env_sim_params)
+                ]
 
                 logp_list, value, LSTM_h, LSTM_c = self.local_net(
                     node_inputs,

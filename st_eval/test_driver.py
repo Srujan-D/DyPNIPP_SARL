@@ -153,7 +153,9 @@ def run_test(
         if SAVE_CSV_RESULT:
             if TRAJECTORY_SAMPLING:
                 csv_filename = (
-                    f"result/CSV/Budget_"
+                    f"../result/CSV/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_ts_"
                     + str(PLAN_STEP)
@@ -166,7 +168,9 @@ def run_test(
                     + "_results.csv"
                 )
                 csv_filename3 = (
-                    f"result/CSV3/Budget_"
+                    f"../result/CSV3/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_ts_"
                     + str(PLAN_STEP)
@@ -180,7 +184,9 @@ def run_test(
                 )
             else:
                 csv_filename = (
-                    f"result/CSV/Budget_"
+                    f"../result/CSV/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_greedy"
                     + "_"
@@ -190,7 +196,9 @@ def run_test(
                     + "_results.csv"
                 )
                 csv_filename3 = (
-                    f"result/CSV3/Budget_"
+                    f"../result/CSV3/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_greedy"
                     + "_"
@@ -211,7 +219,9 @@ def run_test(
         if SAVE_TRAJECTORY_HISTORY:
             if TRAJECTORY_SAMPLING:
                 csv_filename2 = (
-                    f"result/CSV2/Budget_"
+                    f"../result/CSV2/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_ts_"
                     + str(PLAN_STEP)
@@ -225,7 +235,9 @@ def run_test(
                 )
             else:
                 csv_filename2 = (
-                    f"result/CSV2/Budget_"
+                    f"../result/CSV2/Budget_"
+                    + str(FOLDER_NAME)
+                    +'-'
                     + str(Budget)
                     + "_greedy_"
                     + "_"

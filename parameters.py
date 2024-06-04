@@ -17,7 +17,7 @@ LR = 1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
 SUMMARY_WINDOW = 8
-FOLDER_NAME = 'robust_1'
+FOLDER_NAME = 'catnipp_3fires' #'robust_curriculum_updated' #'robust_lambda100_fuel1_5_10'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
@@ -37,6 +37,11 @@ GAE_LAMBDA = 0
 run_name = FOLDER_NAME
 BUFFER_SIZE = int(NUM_META_AGENT * EPISODE_STEPS)
 
-use_wandb = True
+use_wandb = False
 
 UPDATE_EPOCHS = 8
+
+SAVE_TIME_RESULT = True
+SAVE_CSV_RESULT = True
+NUM_TEST=1
+SAVE_TRAJECTORY_HISTORY = True

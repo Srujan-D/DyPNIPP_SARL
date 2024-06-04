@@ -5,7 +5,7 @@ import numpy as np
 from torch.nn.utils.rnn import pad_sequence
 from torch.cuda.amp.autocast_mode import autocast
 from parameters import *
-
+import os
 
 class SingleHeadAttention(nn.Module):
     def __init__(self, embedding_dim):
@@ -461,6 +461,10 @@ class AttentionNet(nn.Module):
             )
         return logp_list, value, LSTM_h, LSTM_c
 
+    def return_attention_weights(self):
+        # return self.encoder weights for visualization
+        pass
+
 
 def padding_inputs(inputs):
     seq = pad_sequence(inputs, batch_first=False, padding_value=1)
@@ -495,6 +499,8 @@ class PredictNextBelief(nn.Module):
             input_size=4 * 6 * 6, hidden_size=128, num_layers=1, batch_first=True
         )
 
+        # self.linear = nn.Linear(900, 128)
+
         self.MLP = nn.Sequential(
             nn.Linear(128, 64),
             nn.ReLU(),
@@ -505,19 +511,61 @@ class PredictNextBelief(nn.Module):
 
         self.policy_feature = None
 
-    def forward(self, x, lstm_h=torch.zeros(1, 1, 128), lstm_c=torch.zeros(1, 1, 128)):
+        # self.features_file = 'features.npy'
+        # self.labels_file = 'labels.npy'
+        # if not os.path.exists(self.features_file):
+        #     np.save(self.features_file, np.empty((0, 128), dtype=np.float32))
+        # if not os.path.exists(self.labels_file):
+        #     np.save(self.labels_file, np.empty((0,), dtype=np.float32))
+
+        # self.freeze_parameters()
+    
+    def freeze_parameters(self):
+        for param in self.parameters():
+            param.requires_grad = False
+
+
+    def forward(self, x, lstm_h=torch.zeros(1, 1, 128), lstm_c=torch.zeros(1, 1, 128), fuel=None):
         batch_size = 1  # x.size(0)
         x = self.conv_encoder(x)
         x = x.view(batch_size, -1)
+        # x = self.linear(x)
         x, (lstm_h, lstm_c) = self.lstm(x.unsqueeze(1), (lstm_h, lstm_c))
         x = x[:, -1, :]
         self.policy_feature = x
+        
+        # self.save_policy_feature(fuel)
         x = self.MLP(x)
         return x.squeeze(1), lstm_h, lstm_c
+        
+        # x = x.view(1, -1)
+        # x = self.linear(x)
+        # self.policy_feature = x
+        # x = self.MLP(self.policy_feature)
+        # return x, lstm_h, lstm_c
 
     def return_policy_feature(self):
         # print("policy feature size", self.policy_feature.size(), self.policy_feature.unsqueeze(0).size())
+        # detached_policy_feature = self.policy_feature.detach()
+        # return detached_policy_feature.unsqueeze(0)
+
         return self.policy_feature.unsqueeze(0)
+    
+    def save_policy_feature(self, fuel):
+        # Load existing features and labels
+        features = np.load(self.features_file)
+        labels = np.load(self.labels_file)
+
+        # Append the latest policy feature and fuel label
+        new_feature = self.policy_feature.detach().numpy()
+        new_label = np.array([fuel], dtype=np.float32)
+
+        features = np.vstack((features, new_feature))
+        labels = np.concatenate((labels, new_label))
+
+        # Save updated features and labels
+        np.save(self.features_file, features)
+        np.save(self.labels_file, labels)
 
 
 class EncoderSimParams(nn.Module):

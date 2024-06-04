@@ -6,7 +6,9 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.cuda.amp.autocast_mode import autocast
 # from parameters import *
 from test_parameters import *
-
+import seaborn as sns
+import matplotlib.pyplot as plt
+import os
 
 class SingleHeadAttention(nn.Module):
     def __init__(self, embedding_dim):
@@ -102,7 +104,8 @@ class MultiHeadAttention(nn.Module):
         )
 
         self.init_parameters()
-
+        self.i=0
+        
     def init_parameters(self):
         for param in self.parameters():
             stdv = 1.0 / math.sqrt(param.size(-1))
@@ -152,6 +155,27 @@ class MultiHeadAttention(nn.Module):
             # U = U.masked_fill(mask == 1, -np.inf)
             U[mask.bool()] = -np.inf
         attention = torch.softmax(U, dim=-1)  # n_heads*batch_size*n_query*targets_size
+
+        # # print("attention size is ", attention.size(), SAMPLE_SIZE)
+        # if attention.size(2) == SAMPLE_SIZE+2:
+        #     attention_maps = attention.squeeze(dim=1).detach().cpu().numpy()  # Removing the batch dimension and converting to numpy
+
+        #     # # Plotting the attention maps
+        #     # fig, axs = plt.subplots(1, self.n_heads, figsize=(20, 5))
+
+        #     # for i, ax in enumerate(axs):
+        #     #     sns.heatmap(attention_maps[i], ax=ax)
+        #     #     ax.set_title(f'Attention Map {i+1}')
+
+        #     fig, ax = plt.subplots(figsize=(10, 10))
+        #     sns.heatmap(attention_maps[0], ax=ax)
+        #     ax.set_title(f'Attention Map {self.i}')
+
+
+        #     plt.tight_layout()
+        #     plt.savefig(f'attention_maps_{self.i}.png')
+        #     self.i += 1
+        #     plt.close()
 
         if mask is not None:
             attnc = attention.clone()
@@ -276,7 +300,7 @@ class AttentionNet(nn.Module):
         self.decoder = Decoder(embedding_dim=embedding_dim, n_head=4, n_layer=1)
         self.pointer = SingleHeadAttention(embedding_dim)
 
-        self.LSTM = nn.LSTM(embedding_dim*2, embedding_dim, batch_first=True)
+        self.LSTM = nn.LSTM(embedding_dim * 2, embedding_dim, batch_first=True)
 
     def graph_embedding(self, node_inputs, edge_inputs, pos_encoding, mask=None):
         # current_position (batch, 1, 2)
@@ -372,13 +396,15 @@ class AttentionNet(nn.Module):
         )
         # input of LSTM is current_node_feature and next_belief
         try:
-            current_node_feature = torch.cat((current_node_feature, next_belief), dim=-1)
+            current_node_feature = torch.cat(
+                (current_node_feature, next_belief), dim=-1
+            )
             # print('current node feature', current_node_feature.size())
         except:
-            print('current node feature', current_node_feature.size())
-            print('next belief', next_belief.size())
+            print("current node feature", current_node_feature.size())
+            print("next belief", next_belief.size())
             quit()
-        
+
         current_node_feature, (LSTM_h, LSTM_c) = self.LSTM(
             current_node_feature, (LSTM_h, LSTM_c)
         )
@@ -416,6 +442,8 @@ class AttentionNet(nn.Module):
             assert 0 in current_mask
 
         # connected_nodes_feature = self.encoder(connected_nodes_feature, current_mask)
+        # print("current feature prime", current_node_feature.size(), connected_nodes_feature.size(), current_mask.size())
+
         current_feature_prime = self.decoder(
             current_node_feature, connected_nodes_feature, current_mask
         )
@@ -456,7 +484,7 @@ class AttentionNet(nn.Module):
                 LSTM_c,
                 mask,
                 i,
-                next_belief=next_belief
+                next_belief=next_belief,
             )
         return logp_list, value, LSTM_h, LSTM_c
 
@@ -476,8 +504,8 @@ class PredictNextBelief(nn.Module):
     def __init__(self, device="cuda"):
         super(PredictNextBelief, self).__init__()
         self.device = device
-        # self.conv encoder --> what features of GP to use? predicted mean, uncertainty, 
-                            # --> do we want to encode history (just regress GP over time) explicitly?
+        # self.conv encoder --> what features of GP to use? predicted mean, uncertainty,
+        # --> do we want to encode history (just regress GP over time) explicitly?
         # self.lstm layer
         # self.MLP layer
 
@@ -490,13 +518,11 @@ class PredictNextBelief(nn.Module):
             nn.MaxPool2d(kernel_size=(2, 2)),
         )
 
-        # self.conv_decoder = 
         self.lstm = nn.LSTM(
-            input_size=4*6*6,
-            hidden_size=128,
-            num_layers=1,
-            batch_first=True
+            input_size=4 * 6 * 6, hidden_size=128, num_layers=1, batch_first=True
         )
+
+        # self.linear = nn.Linear(900, 128)
 
         self.MLP = nn.Sequential(
             nn.Linear(128, 64),
@@ -508,19 +534,63 @@ class PredictNextBelief(nn.Module):
 
         self.policy_feature = None
 
-    def forward(self, x, lstm_h=torch.zeros(1, 1, 128), lstm_c=torch.zeros(1, 1, 128)):
-        batch_size = 1 #x.size(0)
+        self.features_file = 'features_crl_5_250.npy'
+        self.labels_file = 'labels_crl_5_250.npy'
+        if not os.path.exists(self.features_file):
+            np.save(self.features_file, np.empty((0, 128), dtype=np.float32))
+        if not os.path.exists(self.labels_file):
+            np.save(self.labels_file, np.empty((0,), dtype=np.float32))
+
+    def forward(self, x, lstm_h=torch.zeros(1, 1, 128), lstm_c=torch.zeros(1, 1, 128), fuel=None):
+        batch_size = 1  # x.size(0)
         x = self.conv_encoder(x)
         x = x.view(batch_size, -1)
+        # x = self.linear(x)
         x, (lstm_h, lstm_c) = self.lstm(x.unsqueeze(1), (lstm_h, lstm_c))
         x = x[:, -1, :]
         self.policy_feature = x
+
+        # self.save_policy_feature(fuel)
+        
         x = self.MLP(x)
         return x.squeeze(1), lstm_h, lstm_c
-    
+        
+        # x = x.view(1, -1)
+        # x = self.linear(x)
+        # self.policy_feature = x
+        # x = self.MLP(self.policy_feature)
+        # return x, lstm_h, lstm_c
+
     def return_policy_feature(self):
         # print("policy feature size", self.policy_feature.size(), self.policy_feature.unsqueeze(0).size())
-        return self.policy_feature.unsqueeze(0)
+        detached_policy_feature = self.policy_feature.detach()
+        return detached_policy_feature.unsqueeze(0)
+    
+    def create_policy_feature(self, fuel, seed):
+        self.features_file = f'features_lambda100_{fuel}_seed{seed}.npy'
+        self.labels_file = f'labels_lambda100_{fuel}_seed{seed}.npy'
+        if not os.path.exists(self.features_file):
+            np.save(self.features_file, np.empty((0, BELIEF_EMBEDDING_DIM), dtype=np.float32))
+        if not os.path.exists(self.labels_file):
+            np.save(self.labels_file, np.empty((0,), dtype=np.float32))
+    
+    def save_policy_feature(self, fuel, seed=None):
+        # self.create_policy_feature(fuel, seed)
+        # Load existing features and labels
+        features = np.load(self.features_file, allow_pickle=True)
+        labels = np.load(self.labels_file, allow_pickle=True)
+
+        # Append the latest policy feature and fuel label
+        new_feature = self.policy_feature.detach().cpu().numpy()
+        print(new_feature.shape)
+        new_label = np.array([fuel], dtype=np.float32)
+
+        features = np.concatenate((features, new_feature))
+        labels = np.concatenate((labels, new_label))
+
+        # Save updated features and labels
+        np.save(self.features_file, features)
+        np.save(self.labels_file, labels)
 
 
 class EncoderSimParams(nn.Module):
@@ -538,6 +608,7 @@ class EncoderSimParams(nn.Module):
     def forward(self, x):
         x = self.MLP(x)
         return x
+
 
 if __name__ == "__main__":
     model = AttentionNet(2, 8, greedy=True)

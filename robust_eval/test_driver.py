@@ -21,6 +21,7 @@ from test_worker_real import WorkerTestReal as WorkerTest
 from test_parameters import *
 
 import cProfile
+import pprint
 
 # import signal
 
@@ -86,6 +87,7 @@ def run_test(
         "belief_loss_mean",
         "belief_loss_std",
         "belief_loss_total",
+        "belief_loss_list",
     ]
     perf_metrics = {}
     for n in metric_name:
@@ -137,6 +139,7 @@ def run_test(
                 avg_rmse += metrics["avgrmse"]
                 cum_rmse = metrics["cum_rmse"]
                 belief_loss = metrics["belief_loss_total"]
+                belief_loss_list = metrics["belief_loss_list"]
                 # print(avg_rmse)
 
             if curr_test > NUM_TEST:
@@ -155,7 +158,12 @@ def run_test(
                 # print('Avg time per test:', (time.time()-time0)/NUM_TEST)
                 perf_data = []
                 for n in metric_name:
-                    perf_data.append(np.nanmean(perf_metrics[n]))
+                    try:
+                        perf_data.append(np.nanmean(perf_metrics[n]))
+                    except:
+                        print("metric_name : ", n)
+                        print("perf_metrics : ", perf_metrics[n][0])
+                        perf_data.append(np.array(perf_metrics[n][0]))
                 # for i in range(len(metric_name)):
                 # print(metric_name[i], ':\t', perf_data[i])
 
@@ -273,7 +281,7 @@ def run_test(
                 writer.writerows(csv_data)
         # return cov_trace_list
         # return obj2_history
-        return cum_rmse, obj2_history, belief_loss
+        return cum_rmse, obj2_history, belief_loss, belief_loss_list
 
     except KeyboardInterrupt:
         print(">>> CTRL_C pressed. Killing remote workers")
@@ -284,7 +292,7 @@ def run_test(
             ray.kill(a)
 
 
-@ray.remote(num_cpus=8 / NUM_META_AGENT, num_gpus=NUM_GPU / NUM_META_AGENT)
+@ray.remote(num_cpus=1 / NUM_META_AGENT, num_gpus=NUM_GPU / NUM_META_AGENT)
 class RLRunner(Runner):
     def __init__(self, metaAgentID, seed=0):
         super().__init__(metaAgentID)
@@ -375,14 +383,20 @@ class RLRunner(Runner):
 
 if __name__ == "__main__":
     # ray.init(num_cpus=NUM_META_AGENT)
-    ray.init()
+    # ray.init()
     os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    ray.init(num_cpus=NUM_META_AGENT)
+    # torch.cuda.set_device(CUDA_DEVICE[0])
+    pprint.pprint(ray.cluster_resources())
+    pprint.pprint(os.environ["CUDA_VISIBLE_DEVICES"])
+
     device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
     local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
     result_RMSE_all = []
     result_cumRMSE_all = []
     result_belief_loss_all = []
+    result_belief_loss_list_all = []
     for j in range(1):
         result_RMSE = np.array([])
         # result_cumRMSE = np.array([])
@@ -393,8 +407,8 @@ if __name__ == "__main__":
         belief_checkpoint = torch.load(f"{model_path}/belief_checkpoint.pth")
 
         result_path_ = result_path
-        for i in range(50):
-            result_cumRMSE_, result_rmse_, belief_loss = run_test(
+        for i in range(200):
+            result_cumRMSE_, result_rmse_, belief_loss, belief_loss_list = run_test(
                 seed=SEED + i,
                 global_network=global_network,
                 checkpoint=checkpoint,
@@ -409,6 +423,8 @@ if __name__ == "__main__":
             result_RMSE = np.concatenate([result_RMSE, result_rmse_])
             result_cumRMSE_all.append(result_cumRMSE_)
             result_belief_loss_all.append(belief_loss)
+            result_belief_loss_list_all.append(belief_loss_list)
+            # print(belief_loss_list)
 
             # result_cumRMSE = np.concatenate([result_cumRMSE, result_cumRMSE_])
             # pdb.set_trace()
@@ -432,6 +448,10 @@ if __name__ == "__main__":
 
     result_cumRMSE_all = np.array(result_cumRMSE_all)
     result_belief_loss_all = np.array(result_belief_loss_all)
+    # print("result_belief_loss_list_all : ", result_belief_loss_list_all)
+    # for i in result_belief_loss_list_all:
+    #     print("shape : ", len(i))
+    # result_belief_loss_list_all = np.array(result_belief_loss_list_all)
 
     # print("############# FINAL REPORT #############")
     # print("BUDGET_RANGE : ", BUDGET_RANGE)
@@ -472,3 +492,5 @@ if __name__ == "__main__":
     print(
         "---------------min belief_loss of all seeds: ", np.min(result_belief_loss_all)
     )
+    # with np.printoptions(precision=3, suppress=True):
+    #     print("belief_loss_list_all : ", result_belief_loss_list_all)
