@@ -313,8 +313,8 @@ class RLRunner(Runner):
     def singleThreadedJob(
         self, episodeNumber, budget_range, sample_length, model_idx=0
     ):
-        save_img = True #if episodeNumber % SAVE_IMG_GAP == 0 else False
-        np.random.seed(1101319)
+        save_img = True # episodeNumber % SAVE_IMG_GAP == 0 else False
+        np.random.seed(self.seed + episodeNumber*100)
         print("seed : ", self.seed)
         # torch.manual_seed(SEED + 100 * episodeNumber)
         worker = WorkerTest(
@@ -326,7 +326,7 @@ class RLRunner(Runner):
             self.device,
             save_image=save_img,
             greedy=False,
-            seed=1101319,
+            seed=self.seed + episodeNumber*100,
             belief_predictor=self.belief_predictor,
         )
         worker.work(episodeNumber, 0, model_idx)
@@ -421,7 +421,7 @@ if __name__ == "__main__":
         result_path_ = result_path
         for i in range(1):
             result_cumRMSE_, result_rmse_, belief_loss, belief_loss_list = run_test(
-                seed=SEED + i,
+                seed=SEED + i + 5,
                 global_network=global_network,
                 checkpoint=checkpoint,
                 device=device,

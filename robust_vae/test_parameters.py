@@ -13,8 +13,9 @@ NUM_META_AGENT = 1
 GAMMA = 1
 BUDGET_TRAINED = 10
 # BUDGET_RANGE = (6.9999, 7)
+BUDGET_RANGE = (7.99999, 8)
 # BUDGET_RANGE = (10.9999, 11)
-BUDGET_RANGE = (14.9999, 15)
+# BUDGET_RANGE = (14.9999, 15)
 # BUDGET_RANGE = (1.49999, 1.5)  # (6, 8)   (2, 4)  (4, 6)  (6, 8) (8, 10)
 MULTI_GAMMA = None #  [0.2, 0.6, 0.8, 0.9]  # [0, 0.2, 0.6, 0.8 , 0.9, 0.99] #  [0.2, 0.6, 0.8, 0.9]  # [0, 0.1, 0.5, 0.9, 0.99]  #  [0.1, 0.5, 0.9, 0.99] # [0.1, 0.5, 0.9, 0.99]  None
 

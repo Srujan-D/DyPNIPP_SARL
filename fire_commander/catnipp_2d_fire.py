@@ -53,7 +53,7 @@ class FireCommanderExtreme(object):
         self.world_size = 30 if world_size is None else world_size  # world size
         self.duration = 200 if duration is None else duration  # numbr of steps per game
         self.fireAreas_Num = (
-            1 if fireAreas_Num is None else fireAreas_Num
+            2 if fireAreas_Num is None else fireAreas_Num
         )  # number of fire areas
         self.perception_agent_num = (
             1 if P_agent_num is None else P_agent_num
@@ -90,7 +90,8 @@ class FireCommanderExtreme(object):
         for i in range(self.fireAreas_Num):
             area_centers.append([areas_x[i], areas_y[i]])
             num_firespots.append(np.random.randint(low=5, high=15, size=1)[0])
-            area_wind_directions.append(random.choice([0, 45, 90, 135, 180]))
+            # area_wind_directions.append(random.choice([0, 45, 90, 135, 180]))
+            area_wind_directions.append(0)
         self.fire_info = [
             area_centers,  # [[area1_center_x, area1_center_y], [area2_center_x, area2_center_y], ...],
             [

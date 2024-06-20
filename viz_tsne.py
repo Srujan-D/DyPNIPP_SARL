@@ -195,20 +195,20 @@ seed = []
 
 
 # Assuming your feature array is called X and label array is y
-X_1 = np.load('robust_vae/features_cur_vae_1.npy')
-y_1 = np.load('robust_vae/labels_cur_vae_1.npy')
+X_1 = np.load('robust_vae_meanstd/same_belief/features_samebelief_1.npy')
+y_1 = np.load('robust_vae_meanstd/same_belief/labels_samebelief_1.npy')
 
 print('x1 shape:', X_1.shape)
 print('y1 shape:', y_1.shape)
-X_5 = np.load('robust_vae/features_cur_vae_5.npy')
-y_5 = np.load('robust_vae/labels_cur_vae_5.npy')
+X_5 = np.load('robust_vae_meanstd/same_belief/features_samebelief_5.npy')
+y_5 = np.load('robust_vae_meanstd/same_belief/labels_samebelief_5.npy')
 
 print('x5 shape:', X_5.shape)
 print('y5 shape:', y_5.shape)
 
-X_10 = np.load('robust_vae/features_cur_vae_10.npy')
+X_10 = np.load('robust_vae_meanstd/same_belief/features_samebelief_10.npy')
 # X_10 = X_10[:-1]
-y_10 = np.load('robust_vae/labels_cur_vae_10.npy')
+y_10 = np.load('robust_vae_meanstd/same_belief/labels_samebelief_10.npy')
 print('x10 shape:', X_10.shape)
 print('y10 shape:', y_10.shape)
 
@@ -258,7 +258,7 @@ y = np.concatenate((y_1, y_5, y_10), axis=0)
 import time
 t1 = time.time()
 # Step 2: Apply t-SNE to reduce dimensions from 50 to 2
-tsne = TSNE(n_components=2, random_state=42 , perplexity=100)
+tsne = TSNE(n_components=2, random_state=42 , perplexity=60)
 X = tsne.fit_transform(X)
 
 t2 = time.time()
@@ -273,7 +273,7 @@ scatter = plt.scatter(
     X[:, 0], X[:, 1], c=y, cmap=cmap, s=50
 )  # , vmin=-0.5, vmax=10.5)
 plt.colorbar(scatter, ticks=range(11))
-plt.title("Curriculum for AE-style t-SNE visualization of all vegetation coefficients")
+plt.title("same belief t-SNE visualization")
 plt.xlabel("t-SNE component 1")
 plt.ylabel("t-SNE component 2")
 
@@ -290,4 +290,5 @@ plt.ylabel("t-SNE component 2")
 # from adjustText import adjust_text
 # adjust_text(texts, arrowprops=dict(arrowstyle='-', color='gray'))
 
-plt.show()
+# plt.show()
+plt.savefig('vae_same_belief_2.png')

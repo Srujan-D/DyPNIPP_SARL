@@ -47,6 +47,7 @@ class WorkerTestReal:
         self.sample_length = sample_length
         self.seed = seed
         self.n_agents = 1
+        print("seed is ", seed)
 
         self.env = Env(
             sample_size=SAMPLE_SIZE,
@@ -239,10 +240,10 @@ class WorkerTestReal:
 
             # save a frame
             if self.save_image:
-                if not os.path.exists(result_path):
-                    os.makedirs(result_path)
+                if not os.path.exists(result_path+'/'+str(self.global_step)):
+                    os.makedirs(result_path+'/'+str(self.global_step))
                 # attention_weights = self.local_net.return_attention_weights()
-                self.env.plot(route, self.global_step, i, result_path, testID)
+                self.env.plot(route, self.global_step, i, result_path+'/'+str(self.global_step), testID)
 
             if done:
                 if self.env.current_node_index == 0:
@@ -297,7 +298,7 @@ class WorkerTestReal:
         # print("route is ", route)
         # save gif
         if self.save_image:
-            self.make_gif(result_path, currEpisode, testID, perf_metrics["cum_rmse"], perf_metrics["belief_loss_total"])
+            self.make_gif(result_path+'/'+str(self.global_step), currEpisode, testID, perf_metrics["cum_rmse"], perf_metrics["belief_loss_total"])
         return perf_metrics
 
     def work(self, currEpisode, testID, model_idx=0):

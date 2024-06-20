@@ -11,13 +11,13 @@ ADAPTIVE_TH = 0.2
 
 USE_GPU = True
 USE_GPU_GLOBAL = True
-CUDA_DEVICE = [2]
+CUDA_DEVICE = [1]
 NUM_META_AGENT = 16 #32 #6
 LR = 1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
 SUMMARY_WINDOW = 8
-FOLDER_NAME =  'vae_predict_next_belief_5fires' #'vae_predict_next_belief' #'robust_reverse_curriculum_vae_dim16' #'robust_lambda100_fuel1_5_10'
+FOLDER_NAME =  'vae_w_grad_flow_16dim' #'vae_predict_next_belief_5fires' #'vae_predict_next_belief' #'robust_reverse_curriculum_vae_dim16' #'robust_lambda100_fuel1_5_10'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'

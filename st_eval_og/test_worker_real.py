@@ -48,7 +48,7 @@ class WorkerTestReal:
         self.sample_length = sample_length
         self.seed = seed
         self.n_agents = 1
-
+        print("seed is ", seed)
         self.env = Env(
             sample_size=SAMPLE_SIZE,
             start=(0, 0),
@@ -61,7 +61,7 @@ class WorkerTestReal:
             adaptive_th=ADAPTIVE_TH,
             adaptive_area=ADAPTIVE_AREA,
             n_agents=self.n_agents,
-            fuel=1,
+            fuel=5,
         )  # , env_size=30)
 
         self.local_net = localNetwork

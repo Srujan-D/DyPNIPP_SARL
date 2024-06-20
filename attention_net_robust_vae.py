@@ -534,7 +534,7 @@ class PredictNextBelief(nn.Module):
         x, (lstm_h, lstm_c) = self.lstm(x.unsqueeze(1), (lstm_h, lstm_c))
         x = x[:, -1, :]
         self.policy_feature = x
-        self.policy_feature= self.policy_feature.detach()
+        # self.policy_feature= self.policy_feature.detach()
         
         x = self.fc(x)
 

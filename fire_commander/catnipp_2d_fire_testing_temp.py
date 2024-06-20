@@ -64,7 +64,7 @@ class FireCommanderExtreme(object):
         areas_x = np.random.randint(5, self.world_size - 5, self.fireAreas_Num)
         areas_y = np.random.randint(5, self.world_size - 5, self.fireAreas_Num)
         area_delays = [0] * self.fireAreas_Num
-        fuel = 10
+        fuel = 5
         # fuel = np.random.randint(1, 11)
         self.fuel = fuel
         area_fuel_coeffs = [fuel] * self.fireAreas_Num
