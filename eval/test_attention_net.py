@@ -6,7 +6,6 @@ from torch.nn.utils.rnn import pad_sequence
 from torch.cuda.amp.autocast_mode import autocast
 from test_parameters import *
 
-
 class SingleHeadAttention(nn.Module):
     def __init__(self, embedding_dim):
         super(SingleHeadAttention, self).__init__()

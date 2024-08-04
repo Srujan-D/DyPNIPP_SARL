@@ -16,3 +16,5 @@ robust_eval/result/
 wandb/
 train/
 mprofile*.dat
+robust_vae/result/
+result/

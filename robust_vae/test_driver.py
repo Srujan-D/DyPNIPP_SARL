@@ -33,24 +33,25 @@ import pprint
 
 def run_test(
     seed,
-    global_network,
-    checkpoint,
-    device,
-    local_device,
-    result_path_,
     model_idx=0,
     belief_predictor=None,
     belief_checkpoint=None,
+    counter=0,
 ):
     time0 = time.time()
+    result_path_ = result_path
     if not os.path.exists(result_path_):
         os.makedirs(result_path_)
-    # device = torch.device('cuda') if USE_GPU_GLOBAL else torch.device('cpu')
-    # local_device = torch.device('cuda') if USE_GPU else torch.device('cpu')
-    # global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
-    # checkpoint = torch.load(f'{model_path}/checkpoint.pth')
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    device = torch.device('cuda') if USE_GPU_GLOBAL else torch.device('cpu')
+    local_device = torch.device('cuda') if USE_GPU else torch.device('cpu')
+    global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
+    checkpoint = torch.load(f'{model_path}/checkpoint.pth')
     global_network.load_state_dict(checkpoint["model"])
-    belief_predictor.load_state_dict(belief_checkpoint["model"])
+
+    belief_predictor = PredictNextBelief(device).to(device)
+    belief_checkpoint = torch.load(f"{model_path}/belief_checkpoint.pth")
+
     # print(f'Loading model: {FOLDER_NAME}...')
     # print(f'##### of episode for training: ', checkpoint['episode'])
     # print(f'Total budget range: {BUDGET_RANGE}')
@@ -66,7 +67,7 @@ def run_test(
         if device != local_device
         else belief_predictor.state_dict()
     )
-    curr_test = 1
+    curr_test = 1 + (counter * NUM_TEST)
     metric_name = [
         "avgrmse",
         "avgunc",
@@ -293,7 +294,7 @@ def run_test(
                 writer.writerows(csv_data)
         # return cov_trace_list
         # return obj2_history
-        return cum_rmse, obj2_history, belief_loss, belief_loss_list
+        return cum_rmse, obj2_history, belief_loss, belief_loss_list, cov_trace_list
 
     except KeyboardInterrupt:
         print(">>> CTRL_C pressed. Killing remote workers")
@@ -313,7 +314,7 @@ class RLRunner(Runner):
     def singleThreadedJob(
         self, episodeNumber, budget_range, sample_length, model_idx=0
     ):
-        save_img = True # episodeNumber % SAVE_IMG_GAP == 0 else False
+        save_img = False # episodeNumber % SAVE_IMG_GAP == 0 else False
         np.random.seed(self.seed + episodeNumber*100)
         print("seed : ", self.seed)
         # torch.manual_seed(SEED + 100 * episodeNumber)
@@ -335,7 +336,7 @@ class RLRunner(Runner):
 
     def multiThreadedJob(self, episodeNumber, budget_range, sample_length, model_idx=0):
         save_img = (
-            True if (SAVE_IMG_GAP != 0 and episodeNumber % SAVE_IMG_GAP == 0) else False
+            False #True if (SAVE_IMG_GAP != 0 and episodeNumber % SAVE_IMG_GAP == 0) else False
         )
         # save_img = False
         np.random.seed(self.seed + 100 * episodeNumber)
@@ -394,115 +395,156 @@ class RLRunner(Runner):
 
 
 if __name__ == "__main__":
+    # # ray.init(num_cpus=NUM_META_AGENT)
+    # # ray.init()
+    # os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
     # ray.init(num_cpus=NUM_META_AGENT)
-    # ray.init()
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
-    ray.init(num_cpus=NUM_META_AGENT)
-    # torch.cuda.set_device(CUDA_DEVICE[0])
-    pprint.pprint(ray.cluster_resources())
-    pprint.pprint(os.environ["CUDA_VISIBLE_DEVICES"])
+    # # torch.cuda.set_device(CUDA_DEVICE[0])
+    # pprint.pprint(ray.cluster_resources())
+    # pprint.pprint(os.environ["CUDA_VISIBLE_DEVICES"])
 
-    device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
-    local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
+    # device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
+    # local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
-    result_RMSE_all = []
-    result_cumRMSE_all = []
-    result_belief_loss_all = []
-    result_belief_loss_list_all = []
-    for j in range(1):
-        result_RMSE = np.array([])
-        # result_cumRMSE = np.array([])
-        global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
-        checkpoint = torch.load(f"{model_path}/checkpoint.pth")
+    # result_RMSE_all = []
+    # result_cumRMSE_all = []
+    # result_belief_loss_all = []
+    # result_belief_loss_list_all = []
+    # for j in range(1):
+    #     result_RMSE = np.array([])
+    #     # result_cumRMSE = np.array([])
+    #     global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
+    #     checkpoint = torch.load(f"{model_path}/checkpoint.pth")
 
-        belief_predictor = PredictNextBelief(device).to(device)
-        belief_checkpoint = torch.load(f"{model_path}/belief_checkpoint.pth")
+    #     belief_predictor = PredictNextBelief(device).to(device)
+    #     belief_checkpoint = torch.load(f"{model_path}/belief_checkpoint.pth")
 
-        result_path_ = result_path
-        for i in range(1):
-            result_cumRMSE_, result_rmse_, belief_loss, belief_loss_list = run_test(
-                seed=SEED + i + 5,
-                global_network=global_network,
-                checkpoint=checkpoint,
-                device=device,
-                local_device=local_device,
-                result_path_=result_path_,
-                model_idx=j,
-                belief_predictor=belief_predictor,
-                belief_checkpoint=belief_checkpoint,
+    #     result_path_ = result_path
+    #     for i in range(1):
+    #         result_cumRMSE_, result_rmse_, belief_loss, belief_loss_list = run_test(
+    #             seed=SEED + i + 5,
+    #             global_network=global_network,
+    #             checkpoint=checkpoint,
+    #             device=device,
+    #             local_device=local_device,
+    #             result_path_=result_path_,
+    #             model_idx=j,
+    #             belief_predictor=belief_predictor,
+    #             belief_checkpoint=belief_checkpoint,
+    #         )
+    #         # print("result_rmse_ shape : ", result_rmse_, result_cumRMSE_)
+    #         result_RMSE = np.concatenate([result_RMSE, result_rmse_])
+    #         result_cumRMSE_all.append(result_cumRMSE_)
+    #         result_belief_loss_all.append(belief_loss)
+    #         result_belief_loss_list_all.append(belief_loss_list)
+    #         # print(belief_loss_list)
+
+    #         # result_cumRMSE = np.concatenate([result_cumRMSE, result_cumRMSE_])
+    #         # pdb.set_trace()
+    #     print("###############################################################")
+    #     print(
+    #         "---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV
+    #     )
+    #     # print("FIXED_ENV : ", FIXED_ENV)
+    #     print("---------------# of trained epi : ", checkpoint["episode"])
+    #     # print("---------------result rmse, avg RMSE : ", result_RMSE)
+    #     print("---------------avg of all seeds final RMSE: ", np.mean(result_RMSE))
+    #     print("---------------std : ", np.std(result_RMSE))
+    #     print("---------------max : ", np.max(result_RMSE))
+    #     print("---------------min : ", np.min(result_RMSE))
+
+    #     # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
+    #     # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
+    #     # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
+    #     # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
+    #     result_RMSE_all.append(result_RMSE)
+
+    # result_cumRMSE_all = np.array(result_cumRMSE_all)
+    # result_belief_loss_all = np.array(result_belief_loss_all)
+    # # print("result_belief_loss_list_all : ", result_belief_loss_list_all)
+    # for i in result_belief_loss_list_all:
+    #     print("shape : ", len(i))
+    # # result_belief_loss_list_all = np.array(result_belief_loss_list_all)
+
+    # # print("############# FINAL REPORT #############")
+    # # print("BUDGET_RANGE : ", BUDGET_RANGE)
+    # # print("FIXED_ENV : ", FIXED_ENV)
+    # # print("RANDOM_GAMMA : ", RANDOM_GAMMA)
+    # # print("SPECIFIC_GAMMA : ", SPECIFIC_GAMMA)
+    # # print("DECREASE_GAMMA : ", DECREASE_GAMMA)
+    # # print("FIT_GAMMA : ", FIT_GAMMA)
+
+    # for i in range(len(result_RMSE_all)):
+    #     print("###############################################################")
+    #     # print("---------------model path : ", model_path[i])
+    #     print("---------------# of trained epi : ", checkpoint["episode"])
+    #     print("---------------avg of all seeds final RMSE: ", result_RMSE_all[i])
+    #     print("---------------avg : ", np.mean(result_RMSE_all[i]))
+    #     print("---------------std : ", np.std(result_RMSE_all[i]))
+    #     print("---------------max : ", np.max(result_RMSE_all[i]))
+    #     print("---------------min : ", np.min(result_RMSE_all[i]))
+
+    # print("###############################################################")
+    # print("---------------cum_RMSE of all seeds: ", result_cumRMSE_all)
+    # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE_all))
+    # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE_all))
+    # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE_all))
+    # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE_all))
+    # print("###############################################################")
+    # print("---------------belief_loss of all seeds: ", result_belief_loss_all)
+    # print(
+    #     "---------------mean belief_loss of all seeds: ",
+    #     np.mean(result_belief_loss_all),
+    # )
+    # print(
+    #     "---------------std belief_loss of all seeds: ", np.std(result_belief_loss_all)
+    # )
+    # print(
+    #     "---------------max belief_loss of all seeds: ", np.max(result_belief_loss_all)
+    # )
+    # print(
+    #     "---------------min belief_loss of all seeds: ", np.min(result_belief_loss_all)
+    # )
+    # # with np.printoptions(precision=3, suppress=True):
+    # #     print("belief_loss_list_all : ", result_belief_loss_list_all)
+
+
+    result_rmse = []
+    cov_trace_list = []
+    result_cumRMSE = []
+    for i in range(4):
+        ray.init()
+        result_cumRMSE_, result_rmse_, _, _,  cov_trace_list_ = run_test(
+                seed=SEED+i,
+                # global_network=global_network,
+                # checkpoint=checkpoint,
+                # device=device,
+                # local_device=local_device,
+                # result_path_=result_path_,
+                model_idx=i,
+                counter=i
             )
-            # print("result_rmse_ shape : ", result_rmse_, result_cumRMSE_)
-            result_RMSE = np.concatenate([result_RMSE, result_rmse_])
-            result_cumRMSE_all.append(result_cumRMSE_)
-            result_belief_loss_all.append(belief_loss)
-            result_belief_loss_list_all.append(belief_loss_list)
-            # print(belief_loss_list)
+        
+        ray.shutdown()
+        result_rmse.extend(result_rmse_)
+        result_cumRMSE.append(result_cumRMSE_)
+        cov_trace_list.extend(cov_trace_list_)
+    
+    print("###############################################################")
 
-            # result_cumRMSE = np.concatenate([result_cumRMSE, result_cumRMSE_])
-            # pdb.set_trace()
-        print("###############################################################")
-        print(
-            "---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV
-        )
-        # print("FIXED_ENV : ", FIXED_ENV)
-        print("---------------# of trained epi : ", checkpoint["episode"])
-        # print("---------------result rmse, avg RMSE : ", result_RMSE)
-        print("---------------avg of all seeds final RMSE: ", np.mean(result_RMSE))
-        print("---------------std : ", np.std(result_RMSE))
-        print("---------------max : ", np.max(result_RMSE))
-        print("---------------min : ", np.min(result_RMSE))
+    print("---------------avg of all seeds final RMSE: ", np.mean(result_rmse))
+    print("---------------std : ", np.std(result_rmse))
+    print("---------------max : ", np.max(result_rmse))
+    print("---------------min : ", np.min(result_rmse))
 
-        # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
-        # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
-        # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
-        # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
-        result_RMSE_all.append(result_RMSE)
-
-    result_cumRMSE_all = np.array(result_cumRMSE_all)
-    result_belief_loss_all = np.array(result_belief_loss_all)
-    # print("result_belief_loss_list_all : ", result_belief_loss_list_all)
-    for i in result_belief_loss_list_all:
-        print("shape : ", len(i))
-    # result_belief_loss_list_all = np.array(result_belief_loss_list_all)
-
-    # print("############# FINAL REPORT #############")
-    # print("BUDGET_RANGE : ", BUDGET_RANGE)
-    # print("FIXED_ENV : ", FIXED_ENV)
-    # print("RANDOM_GAMMA : ", RANDOM_GAMMA)
-    # print("SPECIFIC_GAMMA : ", SPECIFIC_GAMMA)
-    # print("DECREASE_GAMMA : ", DECREASE_GAMMA)
-    # print("FIT_GAMMA : ", FIT_GAMMA)
-
-    for i in range(len(result_RMSE_all)):
-        print("###############################################################")
-        # print("---------------model path : ", model_path[i])
-        print("---------------# of trained epi : ", checkpoint["episode"])
-        print("---------------avg of all seeds final RMSE: ", result_RMSE_all[i])
-        print("---------------avg : ", np.mean(result_RMSE_all[i]))
-        print("---------------std : ", np.std(result_RMSE_all[i]))
-        print("---------------max : ", np.max(result_RMSE_all[i]))
-        print("---------------min : ", np.min(result_RMSE_all[i]))
+    print("---------------result cov_trace_list, avg cov_trace_list : ", cov_trace_list)
+    print("---------------avg of all seeds final cov_trace_list: ", np.mean(cov_trace_list))
+    print("---------------std : ", np.std(cov_trace_list))
+    print("---------------max : ", np.max(cov_trace_list))
 
     print("###############################################################")
-    print("---------------cum_RMSE of all seeds: ", result_cumRMSE_all)
-    print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE_all))
-    print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE_all))
-    print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE_all))
-    print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE_all))
-    print("###############################################################")
-    print("---------------belief_loss of all seeds: ", result_belief_loss_all)
-    print(
-        "---------------mean belief_loss of all seeds: ",
-        np.mean(result_belief_loss_all),
-    )
-    print(
-        "---------------std belief_loss of all seeds: ", np.std(result_belief_loss_all)
-    )
-    print(
-        "---------------max belief_loss of all seeds: ", np.max(result_belief_loss_all)
-    )
-    print(
-        "---------------min belief_loss of all seeds: ", np.min(result_belief_loss_all)
-    )
-    # with np.printoptions(precision=3, suppress=True):
-    #     print("belief_loss_list_all : ", result_belief_loss_list_all)
+    # print("---------------cum_RMSE of all seeds: ", result_cumRMSE_)
+    print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
+    print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
+    print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
+    print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))

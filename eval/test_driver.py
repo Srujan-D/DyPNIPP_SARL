@@ -62,11 +62,14 @@ def run_test(seed, global_network, checkpoint, device, local_device, result_path
     try:
         while True:
             jobList = []
+            t1 = time.time()
             for i, meta_agent in enumerate(meta_agents):
                 jobList.append(meta_agent.job.remote(weights, curr_test, budget_range=BUDGET_RANGE, sample_length=SAMPLE_LENGTH, model_idx=model_idx))
                 curr_test += 1
             done_id, jobList = ray.wait(jobList, num_returns=NUM_META_AGENT)
             done_jobs = ray.get(done_id)
+            t2 = time.time()
+            print(f'Finished test {curr_test-1} in {t2-t1:.4f} seconds')
 
             for job in done_jobs:
                 metrics, info = job
@@ -137,14 +140,15 @@ def run_test(seed, global_network, checkpoint, device, local_device, result_path
             ray.kill(a)
 
 
-@ray.remote(num_cpus=8/NUM_META_AGENT, num_gpus=NUM_GPU/NUM_META_AGENT)
+# @ray.remote(num_cpus=8/NUM_META_AGENT, num_gpus=NUM_GPU/NUM_META_AGENT)
+@ray.remote(num_cpus=NUM_META_AGENT, num_gpus=NUM_GPU)
 class RLRunner(Runner):
     def __init__(self, metaAgentID, seed=0, multigamma=False):
         super().__init__(metaAgentID)
         self.seed = seed
 
     def singleThreadedJob(self, episodeNumber, budget_range, sample_length, model_idx=0):
-        save_img = True if episodeNumber % SAVE_IMG_GAP == 0 else False
+        save_img = False #True if episodeNumber % SAVE_IMG_GAP == 0 else False
         np.random.seed(self.seed + 100 * episodeNumber)
         print("seed : ", self.seed)
         #torch.manual_seed(SEED + 100 * episodeNumber)
@@ -208,23 +212,24 @@ if __name__ == '__main__':
         else:
             multigamma = False
         global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM, multigamma=multigamma).to(device)
+        # checkpoint = torch.load(f'{model_path}/best_model_checkpoint.pth')
         checkpoint = torch.load(f'{model_path}/checkpoint.pth')
         result_path_= result_path
         for i in range(30):
             result_cov_ = run_test(seed=SEED+i, global_network=global_network, checkpoint=checkpoint, device=device, local_device=local_device, result_path_=result_path_, model_idx=j)
             # print("result_cov_ shape : ", result_cov_.shape)
-            result_cov = np.concatenate([result_cov, result_cov_])
-            # pdb.set_trace()
-        print("###############################################################")
-        print("---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV)
-        # print("FIXED_ENV : ", FIXED_ENV)
-        print("---------------# of trained epi : ", checkpoint['episode'])
-        print("---------------result cov : ", result_cov)
-        print("---------------avg : ", np.mean(result_cov))
-        print("---------------std : ", np.std(result_cov))
-        print("---------------max : ", np.max(result_cov))
-        print("---------------min : ", np.min(result_cov))
-        result_cov_all.append(result_cov)
+        #     result_cov = np.concatenate([result_cov, result_cov_])
+        #     # pdb.set_trace()
+        # print("###############################################################")
+        # # print("---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV)
+        # # print("FIXED_ENV : ", FIXED_ENV)
+        # print("---------------# of trained epi : ", checkpoint['episode'])
+        # print("---------------result cov : ", result_cov)
+        # print("---------------avg : ", np.mean(result_cov))
+        # print("---------------std : ", np.std(result_cov))
+        # print("---------------max : ", np.max(result_cov))
+        # print("---------------min : ", np.min(result_cov))
+        # result_cov_all.append(result_cov)
 
     # print("############# FINAL REPORT #############")
     # print("BUDGET_RANGE : ", BUDGET_RANGE)

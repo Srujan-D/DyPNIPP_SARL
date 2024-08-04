@@ -10,8 +10,8 @@ import sys
 # sys.path.append('..')
 sys.path.append("/data/srujan/research/catnipp")
 
-# from env_fire_testing import Env
-from env_fire_testing_temp import Env
+from env_fire_testing import Env
+# from env_fire_testing_temp import Env
 
 # from attention_net import AttentionNet
 import scipy.signal as signal

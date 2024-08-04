@@ -27,7 +27,7 @@ class GaussianProcess:
                 kernel=self.kernel, optimizer="fmin_l_bfgs_b", n_restarts_optimizer=10
             )
         else:
-            self.kernel = Matern(length_scale=[0.1, 0.1, 10])
+            self.kernel = Matern(length_scale=[0.25, 0.25, 15])
             self.gp = GaussianProcessRegressor(
                 kernel=self.kernel, optimizer=None, n_restarts_optimizer=0
             )
@@ -227,21 +227,24 @@ class GaussianProcess:
                 y_true.reshape(self.env_size, self.env_size),
                 shading="auto",
                 vmin=0,
-                vmax=y_true.max(),
+                # vmax=y_true.max(),
+                vmax=1,
             )
         )
         plt.subplot(2, 2, 3)  # stddev
         plt.title("Predict std")
         fig.colorbar(
             plt.pcolormesh(
-                X0p, X1p, std, shading="auto", vmin=std.min(), vmax=std.max()
+                # X0p, X1p, std, shading="auto", vmin=std.min(), vmax=std.max()
+                X0p, X1p, std, shading="auto", vmin=0.0, vmax=1.0
             )
         )
         plt.subplot(2, 2, 1)  # mean
         plt.title("Predict mean")
         fig.colorbar(
             plt.pcolormesh(
-                X0p, X1p, y_pred, shading="auto", vmin=y_pred.min(), vmax=y_pred.max()
+                # X0p, X1p, y_pred, shading="auto", vmin=y_pred.min(), vmax=y_pred.max()
+                X0p, X1p, y_pred, shading="auto", vmin=0.0, vmax=1.0
             )
         )
 

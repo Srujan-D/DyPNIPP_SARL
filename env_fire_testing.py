@@ -585,8 +585,6 @@ class Env:
                 "{}/{}_{}_{}_attention.png".format(path, n, testID, step),
                 dpi=150,
             )
-                
-
 
 
 if __name__ == "__main__":

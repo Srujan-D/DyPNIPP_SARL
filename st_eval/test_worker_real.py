@@ -62,7 +62,7 @@ class WorkerTestReal:
             adaptive_th=ADAPTIVE_TH,
             adaptive_area=ADAPTIVE_AREA,
             n_agents=self.n_agents,
-            fuel=1,
+            fuel=10,
         )  # , env_size=30)
 
         self.local_net = localNetwork

@@ -51,7 +51,7 @@ class FireCommanderExtreme(object):
         self.world_size = 30 if world_size is None else world_size  # world size
         self.duration = 200 if duration is None else duration  # numbr of steps per game
         self.fireAreas_Num = (
-            3 if fireAreas_Num is None else fireAreas_Num
+            2 if fireAreas_Num is None else fireAreas_Num
         )  # number of fire areas
         self.perception_agent_num = (
             1 if P_agent_num is None else P_agent_num

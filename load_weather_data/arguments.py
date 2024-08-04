@@ -1,0 +1,9 @@
+DATA_FILE = '/data/srujan/research/catnipp/load_weather_data/air.sig995.mon.mean.nc'
+LAT_MIN = 0
+LAT_MAX = 45
+LON_MIN = 0
+LON_MAX = 45
+ROI_SIZE = 50
+ENV_SIZE = 50
+NORMALIZE_Y = True
+RANDOM_ROI = True

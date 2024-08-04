@@ -30,15 +30,17 @@ import cProfile
 
 
 def run_test(
-    seed, global_network, checkpoint, device, local_device, result_path_, model_idx=0
+    seed, model_idx=0, counter=0
 ):
     time0 = time.time()
+    result_path_ = result_path
     if not os.path.exists(result_path_):
         os.makedirs(result_path_)
-    # device = torch.device('cuda') if USE_GPU_GLOBAL else torch.device('cpu')
-    # local_device = torch.device('cuda') if USE_GPU else torch.device('cpu')
-    # global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
-    # checkpoint = torch.load(f'{model_path}/checkpoint.pth')
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    device = torch.device('cuda') if USE_GPU_GLOBAL else torch.device('cpu')
+    local_device = torch.device('cuda') if USE_GPU else torch.device('cpu')
+    global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
+    checkpoint = torch.load(f'{model_path}/checkpoint.pth')
     global_network.load_state_dict(checkpoint["model"])
     # print(f'Loading model: {FOLDER_NAME}...')
     # print(f'##### of episode for training: ', checkpoint['episode'])
@@ -50,7 +52,8 @@ def run_test(
         if device != local_device
         else global_network.state_dict()
     )
-    curr_test = 1
+    # curr_test = 1
+    curr_test = 1 + (counter * NUM_TEST)
     metric_name = [
         "avgrmse",
         "avgunc",
@@ -263,7 +266,7 @@ def run_test(
                 writer.writerows(csv_data)
         # return cov_trace_list
         # return obj2_history
-        return cum_rmse, obj2_history
+        return cum_rmse, obj2_history, cov_trace_list
 
     except KeyboardInterrupt:
         print(">>> CTRL_C pressed. Killing remote workers")
@@ -283,7 +286,7 @@ class RLRunner(Runner):
     def singleThreadedJob(
         self, episodeNumber, budget_range, sample_length, model_idx=0
     ):
-        save_img = True if episodeNumber % SAVE_IMG_GAP == 0 else False
+        save_img = False #True if episodeNumber % SAVE_IMG_GAP == 0 else False
         np.random.seed(self.seed + 100 * episodeNumber)
         print("seed : ", self.seed)
         # torch.manual_seed(SEED + 100 * episodeNumber)
@@ -358,79 +361,141 @@ class RLRunner(Runner):
 
 
 if __name__ == "__main__":
-    # ray.init(num_cpus=NUM_META_AGENT)
-    ray.init()
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
-    device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
-    local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
+    # # ray.init(num_cpus=NUM_META_AGENT)
+    # # ray.init()
+    # # os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    # # device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
+    # # local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
-    result_RMSE_all = []
-    result_cumRMSE_all = []
-    for j in range(1):
-        result_RMSE = np.array([])
-        # result_cumRMSE = np.array([])
-        global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
-        checkpoint = torch.load(f"{model_path}/checkpoint.pth")
-        result_path_ = result_path
-        for i in range(50):
-            result_cumRMSE_, result_rmse_ = run_test(
-                seed=SEED + i,
-                global_network=global_network,
-                checkpoint=checkpoint,
-                device=device,
-                local_device=local_device,
-                result_path_=result_path_,
-                model_idx=j,
-            )
-            # print("result_rmse_ shape : ", result_rmse_, result_cumRMSE_)
-            result_RMSE = np.concatenate([result_RMSE, result_rmse_])
-            result_cumRMSE_all.append(result_cumRMSE_)
+    # result_RMSE_all = []
+    # result_cumRMSE_all = []
+    # cov_trace_list = []
+    # for j in range(1):
+    #     result_RMSE = np.array([])
+    #     # result_cumRMSE = np.array([])
+    #     # ray.init()
+    #     # os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    #     # device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
+    #     # local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
-            # result_cumRMSE = np.concatenate([result_cumRMSE, result_cumRMSE_])
-            # pdb.set_trace()
-        print("###############################################################")
-        print(
-            "---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV
-        )
-        # print("FIXED_ENV : ", FIXED_ENV)
-        print("---------------# of trained epi : ", checkpoint["episode"])
-        # print("---------------result rmse, avg RMSE : ", result_RMSE)
-        print("---------------avg of all seeds final RMSE: ", np.mean(result_RMSE))
-        print("---------------std : ", np.std(result_RMSE))
-        print("---------------max : ", np.max(result_RMSE))
-        print("---------------min : ", np.min(result_RMSE))
+    #     # global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
+    #     # checkpoint = torch.load(f"{model_path}/checkpoint.pth")
+    #     # result_path_ = result_path
+    #     for i in range(200//NUM_META_AGENT):
+    #         ray.init()
+    #         os.environ["CUDA_VISIBLE_DEVICES"] = str(CUDA_DEVICE[0])
+    #         device = torch.device("cuda") if USE_GPU_GLOBAL else torch.device("cpu")
+    #         local_device = torch.device("cuda") if USE_GPU else torch.device("cpu")
 
-        # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
-        # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
-        # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
-        # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
-        result_RMSE_all.append(result_RMSE)
+    #         global_network = AttentionNet(INPUT_DIM, EMBEDDING_DIM).to(device)
+    #         checkpoint = torch.load(f"{model_path}/checkpoint.pth")
+    #         result_path_ = result_path
+    #         result_cumRMSE_, result_rmse_, cov_trace_list_ = run_test(
+    #             seed=SEED + i,
+    #             global_network=global_network,
+    #             checkpoint=checkpoint,
+    #             device=device,
+    #             local_device=local_device,
+    #             result_path_=result_path_,
+    #             model_idx=j,
+    #         )
+    #         print('cov trace list:', cov_trace_list_, len(cov_trace_list_))
+    #         # print("result_rmse_ shape : ", result_rmse_, result_cumRMSE_)
+    #         result_RMSE = np.concatenate([result_RMSE, result_rmse_])
+    #         result_cumRMSE_all.append(result_cumRMSE_)
+    #         cov_trace_list.extend(cov_trace_list_)
+    #         print('len cov trace list:', len(cov_trace_list))
+            
+    #         ray.shutdown()
+    #         # result_cumRMSE = np.concatenate([result_cumRMSE, result_cumRMSE_])
+    #         # pdb.set_trace()
+    #     print("###############################################################")
+    #     print(
+    #         "---------------model path : ", model_path[j], "   FIXED_ENV : ", FIXED_ENV
+    #     )
+    #     # print("FIXED_ENV : ", FIXED_ENV)
+    #     print("---------------# of trained epi : ", checkpoint["episode"])
+    #     # print("---------------result rmse, avg RMSE : ", result_RMSE)
+    #     print("---------------avg of all seeds final RMSE: ", np.mean(result_RMSE))
+    #     print("---------------std : ", np.std(result_RMSE))
+    #     print("---------------max : ", np.max(result_RMSE))
+    #     print("---------------min : ", np.min(result_RMSE))
+
+    #     print("---------------result cov_trace_list, avg cov_trace_list : ", cov_trace_list)
+    #     print("---------------avg of all seeds final cov_trace_list: ", np.mean(cov_trace_list))
+    #     print("---------------std : ", np.std(cov_trace_list))
+    #     print("---------------max : ", np.max(cov_trace_list))
+    #     print("---------------min : ", np.min(cov_trace_list))
+
+
+    #     # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
+    #     # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
+    #     # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
+    #     # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
+    #     result_RMSE_all.append(result_RMSE)
     
-    result_cumRMSE_all = np.array(result_cumRMSE_all)
+    # result_cumRMSE_all = np.array(result_cumRMSE_all)
         
+    # for i in range(len(result_RMSE_all)):
+    #     print("###############################################################")
+    #     # print("---------------model path : ", model_path[i])
+    #     print("---------------# of trained epi : ", checkpoint["episode"])
+    #     print("---------------avg of all seeds final RMSE: ", result_RMSE_all[i])
+    #     print("---------------avg : ", np.mean(result_RMSE_all[i]))
+    #     print("---------------std : ", np.std(result_RMSE_all[i]))
+    #     print("---------------max : ", np.max(result_RMSE_all[i]))
+    #     print("---------------min : ", np.min(result_RMSE_all[i]))
 
-    # print("############# FINAL REPORT #############")
-    # print("BUDGET_RANGE : ", BUDGET_RANGE)
-    # print("FIXED_ENV : ", FIXED_ENV)
-    # print("RANDOM_GAMMA : ", RANDOM_GAMMA)
-    # print("SPECIFIC_GAMMA : ", SPECIFIC_GAMMA)
-    # print("DECREASE_GAMMA : ", DECREASE_GAMMA)
-    # print("FIT_GAMMA : ", FIT_GAMMA)
+    # print("###############################################################")
+    # print("---------------cum_RMSE of all seeds: ", result_cumRMSE_all)
+    # print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE_all))
+    # print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE_all))
+    # print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE_all))
+    # print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE_all))
 
-    for i in range(len(result_RMSE_all)):
-        print("###############################################################")
-        # print("---------------model path : ", model_path[i])
-        print("---------------# of trained epi : ", checkpoint["episode"])
-        print("---------------avg of all seeds final RMSE: ", result_RMSE_all[i])
-        print("---------------avg : ", np.mean(result_RMSE_all[i]))
-        print("---------------std : ", np.std(result_RMSE_all[i]))
-        print("---------------max : ", np.max(result_RMSE_all[i]))
-        print("---------------min : ", np.min(result_RMSE_all[i]))
+    result_rmse = []
+    cov_trace_list = []
+    result_cumRMSE = []
+    for i in range(4):
+        ray.init()
+
+        result_cumRMSE_, result_rmse_, cov_trace_list_ = run_test(
+                seed=SEED+i,
+                # global_network=global_network,
+                # checkpoint=checkpoint,
+                # device=device,
+                # local_device=local_device,
+                # result_path_=result_path_,
+                model_idx=i,
+                counter=i
+            )
+        
+        ray.shutdown()
+        result_rmse.extend(result_rmse_)
+        result_cumRMSE.append(result_cumRMSE_)
+        cov_trace_list.extend(cov_trace_list_)
+    
+    print("###############################################################")
+
+    print("---------------avg of all seeds final RMSE: ", np.mean(result_rmse))
+    print("---------------std : ", np.std(result_rmse))
+    print("---------------max : ", np.max(result_rmse))
+    print("---------------min : ", np.min(result_rmse))
+
+    print("---------------result cov_trace_list, avg cov_trace_list : ", cov_trace_list)
+    print("---------------avg of all seeds final cov_trace_list: ", np.mean(cov_trace_list))
+    print("---------------std : ", np.std(cov_trace_list))
+    print("---------------max : ", np.max(cov_trace_list))
 
     print("###############################################################")
-    print("---------------cum_RMSE of all seeds: ", result_cumRMSE_all)
-    print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE_all))
-    print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE_all))
-    print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE_all))
-    print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE_all))
-        
+    # print("---------------cum_RMSE of all seeds: ", result_cumRMSE_)
+    print("---------------mean cum_RMSE of all seeds: ", np.mean(result_cumRMSE))
+    print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
+    print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
+    print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
+
+
+
+
+
+

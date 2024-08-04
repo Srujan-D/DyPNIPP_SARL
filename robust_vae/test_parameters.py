@@ -4,7 +4,7 @@ USE_GPU = True
 USE_GPU_GLOBAL = True
 NUM_GPU = 1
 CUDA_DEVICE = [1] #[0, 1, 2, 3]
-NUM_META_AGENT = 1
+NUM_META_AGENT = 50
 
 # BUDGET_RANGE = (7.99999, 8) #(9.99999, 10)
 
@@ -13,9 +13,8 @@ NUM_META_AGENT = 1
 GAMMA = 1
 BUDGET_TRAINED = 10
 # BUDGET_RANGE = (6.9999, 7)
-BUDGET_RANGE = (7.99999, 8)
 # BUDGET_RANGE = (10.9999, 11)
-# BUDGET_RANGE = (14.9999, 15)
+BUDGET_RANGE = (14.9999, 15)
 # BUDGET_RANGE = (1.49999, 1.5)  # (6, 8)   (2, 4)  (4, 6)  (6, 8) (8, 10)
 MULTI_GAMMA = None #  [0.2, 0.6, 0.8, 0.9]  # [0, 0.2, 0.6, 0.8 , 0.9, 0.99] #  [0.2, 0.6, 0.8, 0.9]  # [0, 0.1, 0.5, 0.9, 0.99]  #  [0.1, 0.5, 0.9, 0.99] # [0.1, 0.5, 0.9, 0.99]  None
 
@@ -29,7 +28,7 @@ DECREASE_GAMMA = None
 FIT_GAMMA = None
 
 
-SEED = 1
+SEED = 4912
 
 FIXED_ENV= 2  # None 1 2 3 
 ################################################################
@@ -64,7 +63,7 @@ result_path = f'result/{FOLDER_NAME}'
 
 
 
-NUM_TEST = 1
+NUM_TEST = 50
 TRAJECTORY_SAMPLING = False
 PLAN_STEP = 15
 NUM_SAMPLE_TEST = 4 # do not exceed 99
