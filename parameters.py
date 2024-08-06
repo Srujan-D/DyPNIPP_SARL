@@ -1,4 +1,4 @@
-BATCH_SIZE = 32 #8
+BATCH_SIZE = 128 #8
 INPUT_DIM = 4
 EMBEDDING_DIM = 128
 SAMPLE_SIZE = 200
@@ -13,11 +13,11 @@ USE_GPU = True
 USE_GPU_GLOBAL = True
 CUDA_DEVICE = [1]
 NUM_META_AGENT = 16 #32 #6
-LR = 1e-4
+LR = 3e-5 #1e-4
 GAMMA = 0.99
 DECAY_STEP = 32
 SUMMARY_WINDOW = 8
-FOLDER_NAME = 'catnipp_3fires' #'robust_curriculum_updated' #'robust_lambda100_fuel1_5_10'
+FOLDER_NAME =  'catnipp_dr_weather_area_lat15' #'catnipp_3fires' #'robust_curriculum_updated' #'robust_lambda100_fuel1_5_10'
 model_path = f'model/{FOLDER_NAME}'
 train_path = f'train/{FOLDER_NAME}'
 gifs_path = f'gifs/{FOLDER_NAME}'
@@ -37,7 +37,7 @@ GAE_LAMBDA = 0
 run_name = FOLDER_NAME
 BUFFER_SIZE = int(NUM_META_AGENT * EPISODE_STEPS)
 
-use_wandb = False
+use_wandb = True
 
 UPDATE_EPOCHS = 8
 

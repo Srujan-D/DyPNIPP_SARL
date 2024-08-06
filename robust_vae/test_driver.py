@@ -89,6 +89,7 @@ def run_test(
         "belief_loss_std",
         "belief_loss_total",
         "belief_loss_list",
+        "returns"
     ]
     perf_metrics = {}
     for n in metric_name:
@@ -100,9 +101,11 @@ def run_test(
     obj_history = []
     obj2_history = []
     avg_rmse = []
-    cum_rmse = 0.0
+    cum_rmse = []
 
     belief_loss = 0.0
+
+    returns_list = []
 
     # # signal.signal(signal.SIGINT, signal_handler)
     # profiler = cProfile.Profile()
@@ -138,9 +141,10 @@ def run_test(
                 obj_history += metrics["obj_history"]
                 obj2_history += metrics["obj2_history"]
                 avg_rmse += metrics["avgrmse"]
-                cum_rmse = metrics["cum_rmse"]
+                cum_rmse += metrics["cum_rmse"]
                 belief_loss = metrics["belief_loss_total"]
                 belief_loss_list = metrics["belief_loss_list"]
+                returns_list.append(metrics["returns"])
                 # print(avg_rmse)
 
             if curr_test > NUM_TEST:
@@ -163,6 +167,7 @@ def run_test(
                         perf_data.append(np.nanmean(perf_metrics[n]))
                     except:
                         print("metric_name : ", n)
+                        # try:
                         print("perf_metrics : ", perf_metrics[n][0])
                         perf_data.append(np.array(perf_metrics[n][0]))
                 # for i in range(len(metric_name)):
@@ -171,6 +176,7 @@ def run_test(
                 idx = np.array(episode_number_list).argsort()
                 cov_trace_list = np.array(cov_trace_list)[idx]
                 time_list = np.array(time_list)[idx]
+                returns_list = np.array(returns_list)[idx]
 
                 if SAVE_TRAJECTORY_HISTORY:
                     idx = np.array(budget_history).argsort()
@@ -294,7 +300,7 @@ def run_test(
                 writer.writerows(csv_data)
         # return cov_trace_list
         # return obj2_history
-        return cum_rmse, obj2_history, belief_loss, belief_loss_list, cov_trace_list
+        return cum_rmse, obj2_history, belief_loss, belief_loss_list, cov_trace_list, returns_list
 
     except KeyboardInterrupt:
         print(">>> CTRL_C pressed. Killing remote workers")
@@ -512,9 +518,10 @@ if __name__ == "__main__":
     result_rmse = []
     cov_trace_list = []
     result_cumRMSE = []
+    returns_list = []
     for i in range(4):
         ray.init()
-        result_cumRMSE_, result_rmse_, _, _,  cov_trace_list_ = run_test(
+        result_cumRMSE_, result_rmse_, _, _,  cov_trace_list_, returns_list_ = run_test(
                 seed=SEED+i,
                 # global_network=global_network,
                 # checkpoint=checkpoint,
@@ -526,9 +533,11 @@ if __name__ == "__main__":
             )
         
         ray.shutdown()
+        print(len(cov_trace_list_), len(returns_list_))
         result_rmse.extend(result_rmse_)
-        result_cumRMSE.append(result_cumRMSE_)
+        result_cumRMSE.extend(result_cumRMSE_)
         cov_trace_list.extend(cov_trace_list_)
+        returns_list.extend(returns_list_)
     
     print("###############################################################")
 
@@ -548,3 +557,10 @@ if __name__ == "__main__":
     print("---------------std cum_RMSE of all seeds: ", np.std(result_cumRMSE))
     print("---------------max cum_RMSE of all seeds: ", np.max(result_cumRMSE))
     print("---------------min cum_RMSE of all seeds: ", np.min(result_cumRMSE))
+
+    print("###############################################################")
+    # print("---------------returns of all seeds: ", returns_list)
+    print("---------------mean returns of all seeds: ", np.mean(returns_list))
+    print("---------------std returns of all seeds: ", np.std(returns_list))
+    print("---------------max returns of all seeds: ", np.max(returns_list))
+    print("---------------min returns of all seeds: ", np.min(returns_list))

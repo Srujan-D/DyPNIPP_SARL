@@ -100,7 +100,7 @@ def run_test(
     obj_history = []
     obj2_history = []
     avg_rmse = []
-    cum_rmse = 0.0
+    cum_rmse = []
 
     belief_loss = 0.0
 
@@ -138,7 +138,7 @@ def run_test(
                 obj_history += metrics["obj_history"]
                 obj2_history += metrics["obj2_history"]
                 avg_rmse += metrics["avgrmse"]
-                cum_rmse = metrics["cum_rmse"]
+                cum_rmse.append(metrics["cum_rmse"])
                 belief_loss = metrics["belief_loss_total"]
                 belief_loss_list = metrics["belief_loss_list"]
                 # print(avg_rmse)
@@ -399,7 +399,8 @@ if __name__ == "__main__":
     result_rmse = []
     cov_trace_list = []
     result_cumRMSE = []
-    for i in range(1):
+    returns_list = []
+    for i in range(4):
         ray.init()
         result_cumRMSE_, result_rmse_, _, _,  cov_trace_list_ = run_test(
                 seed=SEED+i,
@@ -413,8 +414,9 @@ if __name__ == "__main__":
             )
         
         ray.shutdown()
+        print(len(cov_trace_list_))
         result_rmse.extend(result_rmse_)
-        result_cumRMSE.append(result_cumRMSE_)
+        result_cumRMSE.extend(result_cumRMSE_)
         cov_trace_list.extend(cov_trace_list_)
     
     print("###############################################################")

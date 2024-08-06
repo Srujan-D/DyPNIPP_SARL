@@ -1,3 +1,6 @@
+# import gaussian filter
+from scipy.ndimage import gaussian_filter
+
 def load_nc_data(data_file, variable='air'):
     from netCDF4 import Dataset as dt
     f = dt(data_file)
@@ -10,6 +13,10 @@ def load_nc_data(data_file, variable='air'):
             data -= 273
             air_range -= 273
     else:
-        precip = f.variables['precip']
+        precip = f.variables[variable]
         data = precip[:].data
+
+        # apply gaussian filter for every timestep
+        data = gaussian_filter(data, sigma=1)
+
     return data

@@ -51,7 +51,7 @@ FOLDER_NAME_ALL = []
 
 # print("test for : ", model_path)
 
-FOLDER_NAME = 'robust_vae_dim16_3fires'#'vae_predict_same_belief'#'robust_vae_dim16_3fires'#'robust_vae_dim16_3fires'#'vae_predict_next_belief_5fires' #'robust_curriculum_vae_dim16' #'robust_vae_nolambda_dim16'#'robust_vae_nolambda'
+FOLDER_NAME = 'weather_model' #'robust_vae_dim16_3fires'#'weather_model'#'robust_vae_dim16_3fires'#'robust_vae_dim16_3fires'#'vae_predict_next_belief_5fires' #'robust_curriculum_vae_dim16' #'robust_vae_nolambda_dim16'#'robust_vae_nolambda'
 model_path = f'../model/{FOLDER_NAME}'
 # model_path = 'result/veg_10'
 result_path = f'result/weather/{FOLDER_NAME}'

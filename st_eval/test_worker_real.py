@@ -62,7 +62,7 @@ class WorkerTestReal:
             adaptive_th=ADAPTIVE_TH,
             adaptive_area=ADAPTIVE_AREA,
             n_agents=self.n_agents,
-            fuel=10,
+            fuel=1,
         )  # , env_size=30)
 
         self.local_net = localNetwork
@@ -136,6 +136,8 @@ class WorkerTestReal:
         jsd_stddev_list = [np.std(self.env.JS_list)]
         budget_list = [0]
 
+        total_reward = []
+
         for i in range(256):
             # if len(route) >= 2:
             #    mask = torch.zeros((1, SAMPLE_SIZE+2, K_SIZE), dtype=torch.int64).to(self.device)
@@ -174,6 +176,8 @@ class WorkerTestReal:
             )
             # time2 = time.time()
             # print(">>> Step {} took {:.5f} seconds".format(i, time2-time1))
+
+            total_reward += torch.FloatTensor([[[reward]]]).to(self.device)
 
             node_info, node_info_future = node_feature[:, :2], node_feature[:, 2:]
             node_pred, node_std = node_info[:, 0], node_info[:, 1]
@@ -233,6 +237,17 @@ class WorkerTestReal:
                     perf_metrics["obj_history"] = self.obj_history
                     perf_metrics["obj2_history"] = self.obj2_history
                     print("{} Goodbye world! We did it!".format(i))
+
+                    reward = copy.deepcopy(total_reward)
+                    reward.append(value)
+
+                    for i in range(len(reward)):
+                        reward[i] = reward[i].cpu().numpy()
+                    reward_plus = np.array(reward, dtype=object).reshape(-1)
+                    discounted_reward = discount(reward_plus, GAMMA)[:-1]
+                    discounted_reward = discounted_reward.tolist()
+                    perf_metrics["returns"] = np.mean(discounted_reward)
+
                 rmse_list = [self.env.RMSE]
                 jsd_list = [self.env.JS_list]
                 kld_list = [self.env.KL_list]

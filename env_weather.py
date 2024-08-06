@@ -140,7 +140,7 @@ class Env:
             np.random.seed(self.seed)
 
         # generate random temporal offset for each new episode
-        self.time_offset = np.random.randint(self.weather_data.shape[0] - 200)
+        self.time_offset = np.random.randint(self.weather_data.shape[0] - 300, self.weather_data.shape[0] - 200)
         self.episode_weather_data = self.weather_data[self.time_offset]
         # self.episode_weather_data_mean = self.weather_data_mean[self.time_offset]
 

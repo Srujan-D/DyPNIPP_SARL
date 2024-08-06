@@ -11,6 +11,7 @@ import sys
 sys.path.append("/data/srujan/research/catnipp")
 
 from env_fire_testing import Env
+
 # from env_fire_testing_temp import Env
 
 # from attention_net import AttentionNet
@@ -142,6 +143,9 @@ class WorkerTestReal:
         budget_list = [0]
         belief_loss_list = []
 
+        total_reward = []
+        value_list = []
+
         for i in range(256):
             # if len(route) >= 2:
             #    mask = torch.zeros((1, SAMPLE_SIZE+2, K_SIZE), dtype=torch.int64).to(self.device)
@@ -189,6 +193,9 @@ class WorkerTestReal:
             )
             # time2 = time.time()
             # print(">>> Step {} took {:.5f} seconds".format(i, time2-time1))
+
+            total_reward += torch.FloatTensor([[[reward]]]).to(self.device)
+            value_list += value
 
             node_info, node_info_future = node_feature[:, :2], node_feature[:, 2:]
 
@@ -240,10 +247,16 @@ class WorkerTestReal:
 
             # save a frame
             if self.save_image:
-                if not os.path.exists(result_path+'/'+str(self.global_step)):
-                    os.makedirs(result_path+'/'+str(self.global_step))
+                if not os.path.exists(result_path + "/" + str(self.global_step)):
+                    os.makedirs(result_path + "/" + str(self.global_step))
                 # attention_weights = self.local_net.return_attention_weights()
-                self.env.plot(route, self.global_step, i, result_path+'/'+str(self.global_step), testID)
+                self.env.plot(
+                    route,
+                    self.global_step,
+                    i,
+                    result_path + "/" + str(self.global_step),
+                    testID,
+                )
 
             if done:
                 if self.env.current_node_index == 0:
@@ -256,7 +269,18 @@ class WorkerTestReal:
                     perf_metrics["budget_history"] = self.budget_history
                     perf_metrics["obj_history"] = self.obj_history
                     perf_metrics["obj2_history"] = self.obj2_history
+                    # perf_metrics["return"] = total_reward
                     print("{} Goodbye world! We did it!".format(i))
+
+                    reward = copy.deepcopy(total_reward)
+                    reward.append(value)
+                    for i in range(len(reward)):
+                        reward[i] = reward[i].cpu().numpy()
+                    reward_plus = np.array(reward, dtype=object).reshape(-1)
+                    discounted_reward = discount(reward_plus, GAMMA)[:-1]
+                    discounted_reward = discounted_reward.tolist()
+                    perf_metrics["returns"] = np.mean(discounted_reward)
+
                 rmse_list = [self.env.RMSE]
                 jsd_list = [self.env.JS_list]
                 kld_list = [self.env.KL_list]
@@ -290,7 +314,7 @@ class WorkerTestReal:
                 perf_metrics["belief_loss_total"] = np.sum(belief_loss_list)
                 perf_metrics["belief_loss_list"] = belief_loss_list
                 break
-            
+
             # self.belief_predictor.save_policy_feature(self.env.fire.fuel, seed=self.seed-100*self.global_step)
         # self.belief_predictor.save_policy_feature(self.env.fire.fuel)
         self.env.fire.env_close()
@@ -298,7 +322,13 @@ class WorkerTestReal:
         # print("route is ", route)
         # save gif
         if self.save_image:
-            self.make_gif(result_path+'/'+str(self.global_step), currEpisode, testID, perf_metrics["cum_rmse"], perf_metrics["belief_loss_total"])
+            self.make_gif(
+                result_path + "/" + str(self.global_step),
+                currEpisode,
+                testID,
+                perf_metrics["cum_rmse"],
+                perf_metrics["belief_loss_total"],
+            )
         return perf_metrics
 
     def work(self, currEpisode, testID, model_idx=0):
@@ -667,8 +697,6 @@ class WorkerTestReal:
         # except:
         #     # in case coovariance has invalid entries, just return dist(mu1, mu2)
         return torch.Tensor([np.linalg.norm(mu1 - mu2)]).to(self.device)
-
-
 
 
 if __name__ == "__main__":

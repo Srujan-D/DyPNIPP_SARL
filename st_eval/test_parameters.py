@@ -51,7 +51,7 @@ FOLDER_NAME_ALL = []
 
 # print("test for : ", model_path)
 
-FOLDER_NAME = 'veg_mix' #'catnipp_3fires'
+FOLDER_NAME = 'catnipp_dr_weather_area_lat15' #'catnipp_3fires'
 model_path = f'../model/{FOLDER_NAME}'
 # model_path = 'result/veg_10'
 result_path = f'result/{FOLDER_NAME}'

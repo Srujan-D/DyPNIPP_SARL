@@ -222,8 +222,8 @@ def main():
 
         belief_checkpoint = torch.load(model_path + "/belief_checkpoint.pth")
         belief_predictor.load_state_dict(belief_checkpoint["model"])
-        global_optimizer.load_state_dict(belief_checkpoint["optimizer"])
-        lr_decay.load_state_dict(belief_checkpoint["lr_decay"])
+        belief_optimizer.load_state_dict(belief_checkpoint["optimizer"])
+        belief_lr_decay.load_state_dict(belief_checkpoint["lr_decay"])
 
     # launch meta agents
     meta_agents = [RLRunner.remote(i) for i in range(NUM_META_AGENT)]
@@ -249,7 +249,7 @@ def main():
     for i, meta_agent in enumerate(meta_agents):
         jobList.append(
             meta_agent.job.remote(
-                weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH
+                weights, curr_episode, BUDGET_RANGE, sample_size, SAMPLE_LENGTH, belief_predictor_weights=belief_weights,
             )
         )
         curr_episode += 1
